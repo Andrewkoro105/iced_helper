@@ -1,0 +1,15 @@
+[package]
+name = "iced_helper"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+iced = { version = "0.13.1", features = ["default", "image", "tokio", "advanced"] }
+serde = "1.0.219"
+native-dialog = "0.7.0"
+futures = "0.3.31"
+futures-channel = "0.3.31"
+rayon = "1.10.0"
+tokio = "1.44.1"
+iced_futures = "0.13.2"
+tracing = "0.1.41"
