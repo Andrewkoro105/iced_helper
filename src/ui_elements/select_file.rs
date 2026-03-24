@@ -2,9 +2,14 @@ use iced::{Task, advanced::graphics::futures::MaybeSend};
 use native_dialog::FileDialog;
 use std::path::PathBuf;
 
+pub enum TypeAction {
+    Save,
+    Open,
+}
+
 pub enum FileTypes {
     #[allow(dead_code)]
-    Files(Vec<(&'static str, &'static [&'static str])>),
+    Files(TypeAction, Vec<(&'static str, &'static [&'static str])>),
     Dir,
 }
 
@@ -15,11 +20,15 @@ where
 {
     let mut dialog = FileDialog::new().set_location("~/Desktop");
     let path = match file_types {
-        FileTypes::Files(file_types) => {
+        FileTypes::Files(type_action, file_types) => {
             for (file_type, extensions) in file_types {
                 dialog = dialog.clone().add_filter(file_type, extensions);
             }
-            dialog.show_open_single_file()
+            match type_action {
+                TypeAction::Save => dialog.show_save_single_file(),
+                TypeAction::Open => dialog.show_open_single_file(),
+            }
+            
         }
         FileTypes::Dir => dialog.show_open_single_dir(),
     };
