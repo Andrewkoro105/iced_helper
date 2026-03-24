@@ -1,4 +1,4 @@
-use crate::ui_elements::updated::Updated;
+use iced::{Task, advanced::graphics::futures::MaybeSend};
 use native_dialog::FileDialog;
 use std::path::PathBuf;
 
@@ -8,10 +8,10 @@ pub enum FileTypes {
     Dir,
 }
 
-pub fn select_file<F, M, FM>(updated: &mut impl Updated<M>, message: F, file_types: FileTypes)
+pub fn select_file<F, M, FM>(message: F, file_types: FileTypes) -> Task<M>
 where
     F: Fn(PathBuf) -> FM + Clone,
-    M: From<FM>,
+    M: From<FM> + MaybeSend + 'static,
 {
     let mut dialog = FileDialog::new().set_location("~/Desktop");
     let path = match file_types {
@@ -25,6 +25,8 @@ where
     };
 
     if let Some(str) = path.ok().flatten() {
-        updated.update(message(str).into());
+        Task::done(message(str).into())
+    } else {
+        Task::none()
     }
 }

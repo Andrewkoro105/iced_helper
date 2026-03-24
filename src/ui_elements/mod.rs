@@ -2,7 +2,6 @@ pub mod my_tooltip;
 pub mod num_input;
 pub mod select_file;
 pub mod start_progress;
-pub mod updated;
 
 use iced::Element;
 use iced::widget::{button, container, row, text, text_input};
