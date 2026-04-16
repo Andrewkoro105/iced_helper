@@ -1,57 +1,69 @@
 pub mod base_value;
+pub mod modification;
 use iced::Element;
 use iced::widget::text_input;
 use serde::{Deserialize, Serialize, Serializer};
 use std::str::FromStr;
 
-use crate::ui_elements::num_input::base_value::BaseValue;
+use crate::ui_elements::num_input::{base_value::BaseValue, modification::Modification};
 
 #[derive(Debug, Clone)]
-pub struct NumInput<T, BT> {
-    value: T,
+pub struct NumInput<V, BT: BaseValue<V>, M: Modification<V>> {
+    value: V,
+    _modification: M,
     _base_value: BT,
     str: String,
 }
 
-impl<V, BT> Default for NumInput<V, BT>
+impl<V, BT, M> Default for NumInput<V, BT, M>
 where
     BT: BaseValue<V> + Default,
+    M: Modification<V> + Default,
 {
     fn default() -> Self {
         Self {
             value: BT::VALUE,
+            _modification: Default::default(),
             _base_value: Default::default(),
             str: Default::default(),
         }
     }
 }
 
-impl<V, BT> NumInput<V, BT>
+impl<V, BT, Mod> NumInput<V, BT, Mod>
 where
     V: FromStr + ToString + Copy + PartialOrd,
     BT: BaseValue<V> + Default,
+    Mod: Modification<V> + Default,
 {
     pub fn new(value: V) -> Self {
         Self {
             value,
-            _base_value: BT::default(),
+            _modification: Default::default(),
+            _base_value: Default::default(),
             str: value.to_string(),
         }
     }
 
     pub fn set(&mut self, value: V) {
-        self.value = value;
-        self.str = value.to_string();
+        self.value = Mod::to(&value);
+        self.str = self.value.to_string();
     }
 
     pub fn get(&self) -> V {
+        Mod::back(&self.value)
+    }
+
+    pub fn no_modification_get(&self) -> V {
         self.value
     }
 
     pub fn update(&mut self, value_str: &str) -> V {
         if let Ok(value) = V::from_str(value_str) {
-            self.value = value;
-            self.str = value_str.to_string();
+            self.set(value);
+        } else if value_str == "-" {
+            self.str = "-".to_string();
+            self.value = BT::VALUE;
         } else if value_str.is_empty() {
             self.str = "".to_string();
             self.value = BT::VALUE;
@@ -76,29 +88,36 @@ where
     }
 }
 
-impl<T: Serialize, BT> Serialize for NumInput<T, BT> {
+impl<V, BT, M> Serialize for NumInput<V, BT, M>
+where
+    V: Serialize,
+    BT: BaseValue<V> + Default,
+    M: Modification<V> + Default,
+{
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        T::serialize(&self.value, serializer)
+        V::serialize(&self.value, serializer)
     }
 }
 
-impl<'de, T, BT> Deserialize<'de> for NumInput<T, BT>
+impl<'de, V, BT, M> Deserialize<'de> for NumInput<V, BT, M>
 where
-    T: Deserialize<'de> + ToString,
-    BT: Default,
+    V: Deserialize<'de> + ToString,
+    BT: BaseValue<V> + Default,
+    M: Modification<V> + Default,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        let value = T::deserialize(deserializer)?;
+        let value = V::deserialize(deserializer)?;
         Ok(Self {
             str: value.to_string(),
             value,
-            _base_value: BT::default(),
+            _modification: Default::default(),
+            _base_value: Default::default(),
         })
     }
 }
