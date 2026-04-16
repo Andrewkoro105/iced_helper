@@ -46,21 +46,18 @@ where
     }
 
     pub fn set(&mut self, value: V) {
-        self.value = Mod::to(&value);
-        self.str = self.value.to_string();
+        self.value = value;
+        self.str = value.to_string();
     }
 
     pub fn get(&self) -> V {
-        Mod::back(&self.value)
-    }
-
-    pub fn no_modification_get(&self) -> V {
         self.value
     }
 
     pub fn update(&mut self, value_str: &str) -> V {
         if let Ok(value) = V::from_str(value_str) {
-            self.set(value);
+        self.value = Mod::to(&value);
+        self.str = value.to_string();
         } else if value_str == "-" {
             self.str = "-".to_string();
             self.value = BT::VALUE;
@@ -114,8 +111,8 @@ where
     {
         let value = V::deserialize(deserializer)?;
         Ok(Self {
-            str: value.to_string(),
-            value,
+            str: M::back(&value).to_string(),
+            value: value,
             _modification: Default::default(),
             _base_value: Default::default(),
         })
