@@ -1,8 +1,11 @@
+//! Tooltip with a pre-designed background and outline
+
 use iced::widget::button::{Catalog as ButtonCatalog, Status as ButtonStatus};
 use iced::widget::{container, container::{Catalog, Style}};
 use iced::widget::tooltip;
 use iced::{Border, Element};
 
+/// Tooltip with a pre-designed background and outline
 pub fn my_tooltip<M: 'static, T, R>(
     base_elem: impl Into<Element<'static, M, T, R>>,
     tooltip_elem: impl Into<Element<'static, M, T, R>>,

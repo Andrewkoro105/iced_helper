@@ -1,6 +1,9 @@
+//! Progress bar with start and stop buttons
+
 use iced::widget::{button, container, progress_bar, row, text};
 use iced::{Alignment, Element, Length};
 
+/// Progress bar with start and stop buttons
 pub fn start_progress<'elem, P, M, T, R>(
     progress: Option<(P, impl ToString)>,
     start: M,
