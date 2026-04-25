@@ -1,17 +1,17 @@
 pub trait Modification<T> {
-    fn to(value: &T) -> T;
-    fn back(value: &T) -> T;
+    fn to_num(value: &T) -> T;
+    fn to_str(value: &T) -> T;
 }
 
 #[derive(Default, Debug, Clone)]
 pub struct NullCast;
 
 impl<T: Copy> Modification<T> for NullCast {
-    fn to(value: &T) -> T {
+    fn to_num(value: &T) -> T {
         *value
     }
 
-    fn back(value: &T) -> T {
+    fn to_str(value: &T) -> T {
         *value
     }
 }
@@ -20,11 +20,11 @@ impl<T: Copy> Modification<T> for NullCast {
 pub struct CloneNullCast;
 
 impl<T: Clone> Modification<T> for CloneNullCast {
-    fn to(value: &T) -> T {
+    fn to_num(value: &T) -> T {
         value.clone()
     }
 
-    fn back(value: &T) -> T {
+    fn to_str(value: &T) -> T {
         value.clone()
     }
 }
@@ -33,12 +33,12 @@ impl<T: Clone> Modification<T> for CloneNullCast {
 pub struct ColorCast;
 
 impl Modification<f32> for ColorCast {
-    fn to(value: &f32) -> f32 {
+    fn to_num(value: &f32) -> f32 {
         let result = *value / 255.;
         result
     }
 
-    fn back(value: &f32) -> f32 {
+    fn to_str(value: &f32) -> f32 {
         let result = (*value * 255. * 10.0).round() / 10.0;
         result
     }

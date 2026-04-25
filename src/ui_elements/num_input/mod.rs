@@ -41,13 +41,13 @@ where
             value,
             _modification: Default::default(),
             _base_value: Default::default(),
-            str: value.to_string(),
+            str: Mod::to_str(&value).to_string(),
         }
     }
 
     pub fn set(&mut self, value: V) {
         self.value = value;
-        self.str = value.to_string();
+        self.str = Mod::to_str(&value).to_string();
     }
 
     pub fn get(&self) -> V {
@@ -56,13 +56,10 @@ where
 
     pub fn update(&mut self, value_str: &str) -> V {
         if let Ok(value) = V::from_str(value_str) {
-        self.value = Mod::to(&value);
-        self.str = value.to_string();
-        } else if value_str == "-" {
-            self.str = "-".to_string();
-            self.value = BT::VALUE;
-        } else if value_str.is_empty() {
-            self.str = "".to_string();
+            self.value = Mod::to_num(&value);
+            self.str = value.to_string();
+        } else if value_str == "-" || value_str.is_empty() {
+            self.str = value_str.to_string();
             self.value = BT::VALUE;
         }
         self.value
@@ -111,7 +108,7 @@ where
     {
         let value = V::deserialize(deserializer)?;
         Ok(Self {
-            str: M::back(&value).to_string(),
+            str: M::to_str(&value).to_string(),
             value: value,
             _modification: Default::default(),
             _base_value: Default::default(),
