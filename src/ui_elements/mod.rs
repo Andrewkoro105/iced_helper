@@ -30,6 +30,7 @@ use std::path::PathBuf;
 ///     }
 /// }
 /// ```
+#[derive(Clone, Copy, Debug)]
 pub struct ParamSettings<L: Into<Length> + Clone> {
     /// The distance at which all input fields will be located
     pub name_size: L,
