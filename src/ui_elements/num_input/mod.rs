@@ -10,9 +10,9 @@ use std::str::FromStr;
 use crate::ui_elements::num_input::{base_value::BaseValue, modification::Modification};
 
 /// Data storage structure for a numeric input field
-/// 
+///
 /// # Generic arguments
-/// 
+///
 /// - `V` - Number type
 /// - `BT` - The default value that will be used if an empty string or a string consisting solely of “-” is passed (the associative type VALUE in the BaseValue trait is used to specify the constant). This value is also used to implement `Default`
 /// - `M` - A modifier that changes how a number appears in a text field
@@ -24,16 +24,16 @@ use crate::ui_elements::num_input::{base_value::BaseValue, modification::Modific
 ///     NumInput
 /// };
 /// use iced::Element;
-/// 
+///
 /// #[derive(Clone)]
 /// enum Message {
 ///     SetNum(String),
 /// }
-/// 
+///
 /// struct State {
 ///     num: NumInput<f32, ConstF32<0>, ColorCast>,
 /// }
-/// 
+///
 /// impl State {
 ///     
 ///     fn update(&mut self, message: Message) {
@@ -41,12 +41,12 @@ use crate::ui_elements::num_input::{base_value::BaseValue, modification::Modific
 ///             Message::SetNum(num_str) => println!("new value: {}", self.num.update(&num_str))
 ///         }
 ///     }
-/// 
+///
 ///     fn view(&self) -> Element<'_, Message> {
 ///         self.num.view("num_placeholder", Message::SetNum)
 ///     }
 /// }
-/// 
+///
 /// ```
 #[derive(Debug, Clone)]
 pub struct NumInput<V, BT: BaseValue<V>, M: Modification<V>> {
@@ -108,10 +108,10 @@ where
     }
 
     /// Returns an `iced::Element` for displaying the numeric input field
-    /// 
+    ///
     /// # Argument
     /// - `placeholder` - Placeholder, analogous to the corresponding parameter in `iced::widget::text_input()`
-    /// - `message` - A message displayed when the text is changed 
+    /// - `message` - A message displayed when the text is changed
     pub fn view<'elem, F, MB, M, T, R>(
         &self,
         placeholder: &str,
@@ -161,4 +161,23 @@ where
             _base_value: Default::default(),
         })
     }
+}
+
+impl<V, BT, M> PartialEq for NumInput<V, BT, M>
+where
+    V: PartialEq,
+    BT: BaseValue<V>,
+    M: Modification<V>,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.value == other.value
+    }
+}
+
+impl<V, BT, M> Eq for NumInput<V, BT, M>
+where
+    V: PartialEq,
+    BT: BaseValue<V>,
+    M: Modification<V>,
+{
 }
