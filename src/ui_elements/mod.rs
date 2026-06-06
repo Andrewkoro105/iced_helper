@@ -178,8 +178,8 @@ impl<L: Into<Length> + Clone> ParamSettings<L> {
                 ),
                 Element::from(
                     button(match path_type {
-                        PathType::Dir => "выбрать папку",
-                        PathType::File => "выбрать файл",
+                        PathType::Dir => "Select folder",
+                        PathType::File => "Select file",
                     })
                     .on_press(button_message)
                 ),
