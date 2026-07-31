@@ -84,7 +84,7 @@ where
                 info!("find faces finished");
                 sender.send(M::STOP).await;
 
-                info!("Время выполнения: {:?}", start.elapsed());
+                info!("Execution time: {:?}", start.elapsed());
             }),
         )
     }

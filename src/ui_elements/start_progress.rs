@@ -25,12 +25,12 @@ where
                 f32::from(progress.clone()) * 100.
             )),
             progress_bar(0f32..=1f32, progress.into()),
-            button("Стоп").on_press(stop),
+            button("Stop").on_press(stop),
         ]
         .spacing(20)
         .into()
     } else {
-        Element::from(button("Старт").on_press(start))
+        Element::from(button("Start").on_press(start))
     })
     .align_y(Alignment::End)
     .align_x(Alignment::End)
