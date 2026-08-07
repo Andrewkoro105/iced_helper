@@ -14,8 +14,8 @@ struct TestState {
 impl TestState {
     fn view(state: &TestState) -> Element<'_, TestMessage, iced::Theme, iced::Renderer> {
         container(
-            container(VirtualizedList::new(&state.data, |data| {
-                let data_str = if (data.0 / 100) % 2 == 0 {
+            container(VirtualizedList::new(state.data.iter().enumerate(), |(i, data)| {
+                let data_str = if (i / 100) % 2 == 0 {
                     format!("{}\n", data.0).repeat(data.1)
                 } else {
                     data.0.to_string()
@@ -30,7 +30,7 @@ impl TestState {
                 .padding(5)
                 .style(|theme| container::success(theme))
                 .into()
-            }))
+            }).spacing(1000))
             .style(|theme| container::warning(theme)),
         )
         .padding(100)

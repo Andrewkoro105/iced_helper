@@ -1,13 +1,11 @@
 use iced::{
-    Alignment, Element, Event, Length, Rectangle, Size, Vector,
-    advanced::{
+    Alignment, Element, Event, Length, Pixels, Rectangle, Size, Vector, advanced::{
         Clipboard, Layout, Renderer, Shell, Widget,
         layout::{Limits, Node},
         mouse,
         renderer::Style,
         widget::{Tree, tree},
-    },
-    mouse::{Cursor, ScrollDelta},
+    }, mouse::{Cursor, ScrollDelta}
 };
 use indexmap::IndexMap;
 use std::{
@@ -38,7 +36,10 @@ pub struct VirtualizedList<'elem, D, M, T, R, I>
 where
     D: 'elem,
     R: Renderer,
-    I: IntoIterator<Item = D> + Clone,
+    I: IntoIterator<
+            IntoIter: Iterator<Item = D> + DoubleEndedIterator + ExactSizeIterator,
+            Item = D,
+        > + Clone,
 {
     db: I,
     get_elem: fn(D) -> Element<'elem, M, T, R>,
@@ -74,12 +75,42 @@ where
             db,
             get_elem,
             is_vertical: true,
-            spacing: 10.,
+            spacing: 0.,
             width: Length::Shrink,
             height: Length::Fill,
             align: Alignment::Start,
             cash_elem: Default::default(),
         }
+    }
+
+    pub fn width(mut self, width: impl Into<Length>) -> Self {
+        self.width = width.into();
+        self
+    }
+
+    pub fn height(mut self, height: impl Into<Length>) -> Self {
+        self.height = height.into();
+        self
+    }
+
+    pub fn align(mut self, align: impl Into<Alignment>) -> Self {
+        self.align = align.into();
+        self
+    }
+
+    pub fn spacing(mut self, spacing: impl Into<Pixels>) -> Self {
+        self.spacing = spacing.into().0;
+        self
+    }
+
+    pub fn vertical(mut self) -> Self {
+        self.is_vertical = true;
+        self
+    }
+
+    pub fn horizontal(mut self) -> Self {
+        self.is_vertical = false;
+        self
     }
 
     fn get_limits(&self, i: usize, size: Size<Length>, limits: &Limits) -> Limits {
@@ -381,8 +412,7 @@ where
     }
 }
 
-impl<'elem, D, M, T, R, I> From<VirtualizedList<'elem, D, M, T, R, I>>
-    for Element<'elem, M, T, R>
+impl<'elem, D, M, T, R, I> From<VirtualizedList<'elem, D, M, T, R, I>> for Element<'elem, M, T, R>
 where
     D: Hash + 'elem,
     M: 'elem,
