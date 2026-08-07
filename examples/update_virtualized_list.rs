@@ -1,8 +1,8 @@
 use iced::{
-    Element, Theme, widget::{container, text}
+    Element, Program, Subscription, Theme, time, widget::{container, text}
 };
 use iced_helper::widgets::virtualized_list::VirtualizedList;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use tracing::{Level, info};
 use tracing_subscriber::{filter::Targets, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -56,6 +56,9 @@ fn main() {
         TestState::view,
     )
     .theme(Theme::Dark)
+    .subscription(|_: &TestState| {
+        time::repeat(|| async {()}, Duration::from_secs(2))
+    })
     .run()
     .unwrap();
 }

@@ -4,33 +4,34 @@ use iced::{
         Clipboard, Layout, Renderer, Shell, Widget,
         layout::{Limits, Node},
         renderer::Style,
-        widget::Tree,
+        widget::{Tree, tree},
     },
     mouse::{Cursor, ScrollDelta},
 };
 use indexmap::IndexMap;
 use std::{
+    any::Any,
     debug_assert_matches,
     hash::{DefaultHasher, Hash, Hasher},
 };
 use tracing::debug;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Pos {
     pub current_element: usize,
     pub offset: f32,
 }
 
-struct CashElement<'elem, M, T, R> {
+struct CashDataElement {
     hash: u64,
-    elem: Element<'elem, M, T, R>,
     tree: Tree,
     node: Node,
 }
 
-struct State<'elem, M, T, R> {
-    cash_elements: IndexMap<usize, CashElement<'elem, M, T, R>>,
+struct State {
+    cash_elements: IndexMap<usize, CashDataElement>,
     cash_limits: Limits,
+    pos: Pos,
 }
 
 pub struct VirtualizedList<'elem, D, M, T, R, I, F>
@@ -40,7 +41,6 @@ where
     I: IntoIterator<Item = &'elem D> + Copy,
     F: Fn(&'elem D) -> Element<'elem, M, T, R>,
 {
-    pos: Pos,
     db: I,
     get_elem: F,
     is_vertical: bool,
@@ -48,210 +48,15 @@ where
     width: Length,
     height: Length,
     align: Alignment,
-    state: State<'elem, M, T, R>,
+    cash_elem: IndexMap<usize, Element<'elem, M, T, R>>,
 }
 
-impl<'elem, D, M, T, R, I, F> Widget<M, T, R> for VirtualizedList<'elem, D, M, T, R, I, F>
-where
-    D: Hash + 'elem,
-    R: Renderer,
-    I: IntoIterator<
-            IntoIter: Iterator<Item = &'elem D> + DoubleEndedIterator + ExactSizeIterator,
-            Item = &'elem D,
-        > + Copy,
-    F: Fn(&'elem D) -> Element<'elem, M, T, R>,
-{
-    fn size(&self) -> Size<Length> {
-        Size {
-            width: self.width,
-            height: self.height,
-        }
-    }
-
-    fn layout(&mut self, _tree: &mut Tree, renderer: &R, limits: &Limits) -> Node {
-        debug!("layout: limits: {:?}", limits);
-        self.state.cash_limits = *limits;
-        self.state.cash_elements = self
-            .db
-            .into_iter()
-            .enumerate()
-            .skip(self.pos.current_element)
-            .scan(-self.pos.offset, |children_size, (i, data)| {
-                debug!("children_size ({i}): {:.2?}", children_size);
-                if self.is_vertical {
-                    *children_size <= limits.max().height
-                } else {
-                    *children_size <= limits.max().width
-                }
-                .then(|| self.get_element_and_node(i, data, children_size, renderer, limits))
-            })
-            .collect::<IndexMap<_, _>>();
-
-        debug!("result layout: count: {}", self.state.cash_elements.len());
-
-        self.state.cash_elements.iter().for_each(|(i, elem)| {
-            debug!("result layout: i: {i}, bounds: {:?}", elem.node.bounds())
-        });
-
-        Node::with_children(
-            Size {
-                width: limits.max().width,
-                height: limits.max().height,
-            },
-            vec![],
-        )
-    }
-
-    fn draw(
-        &self,
-        _tree: &Tree,
-        renderer: &mut R,
-        theme: &T,
-        style: &Style,
-        layout: Layout<'_>,
-        cursor: Cursor,
-        viewport: &Rectangle,
-    ) {
-        debug!("view_count: {}", self.state.cash_elements.iter().count());
-        let children = self
-            .state
-            .cash_elements
-            .iter()
-            .map(|(_, elem)| {
-                Layout::with_offset(
-                    Vector::new(layout.position().x, layout.position().y),
-                    &elem.node,
-                )
-            })
-            .collect::<Vec<_>>();
-        children
-            .iter()
-            .zip(&self.state.cash_elements)
-            .for_each(|(layout, (i, _))| debug!("draw: i: {i}, bounds: {:?}", layout.bounds()));
-
-        renderer.with_layer(layout.bounds(), |renderer| {
-            self.state
-                .cash_elements
-                .iter()
-                .zip(&children)
-                .for_each(|((_, cash_elem), layout)| {
-                    cash_elem.elem.as_widget().draw(
-                        &cash_elem.tree,
-                        renderer,
-                        theme,
-                        style,
-                        layout.clone(),
-                        cursor,
-                        viewport,
-                    )
-                });
-        });
-    }
-
-    fn update(
-        &mut self,
-        tree: &mut Tree,
-        event: &Event,
-        _layout: Layout<'_>,
-        _cursor: Cursor,
-        renderer: &R,
-        _clipboard: &mut dyn Clipboard,
-        shell: &mut Shell<'_, M>,
-        _viewport: &Rectangle,
-    ) {
-        match event {
-            Event::Mouse(iced::mouse::Event::WheelScrolled {
-                delta: ScrollDelta::Lines { x, y },
-            }) => {
-                debug!("[=============================[update]===============================]");
-                debug!("start pos: {:?}", self.pos);
-                let x = x * -60.;
-                let y = y * -60.;
-                debug!("ScrollDelta::Pixels {{ x: {x}, y: {y} }}");
-                self.pos.offset += if self.is_vertical { y } else { x };
-                debug!("pre pos: {:?}", self.pos);
-                if self.pos.offset < 0. {
-                    if self.pos.current_element == 0 {
-                        self.pos.offset = 0.;
-                        self.layout(tree, renderer, &self.state.cash_limits.clone());
-                        shell.request_redraw();
-                    } else {
-                        self.db
-                            .clone()
-                            .into_iter()
-                            .enumerate()
-                            .rev()
-                            .skip(self.db.clone().into_iter().count() - self.pos.current_element)
-                            .try_for_each(|(i, data)| {
-                                let mut elem = (self.get_elem)(data);
-                                let mut tree = Tree::new(elem.as_widget());
-                                let widget = elem.as_widget_mut();
-                                let size = widget
-                                    .layout(
-                                        &mut tree,
-                                        renderer,
-                                        &self.get_limits(i, widget.size(), &self.state.cash_limits),
-                                    )
-                                    .bounds()
-                                    .size();
-
-                                self.pos.offset += if self.is_vertical {
-                                    size.height
-                                } else {
-                                    size.width
-                                };
-                                self.pos.current_element -= 1;
-
-                                (self.pos.offset < 0.).then_some(())
-                            });
-                        self.layout(tree, renderer, &self.state.cash_limits.clone());
-                        shell.request_redraw();
-                    }
-                } else {
-                    if self.pos.current_element == (self.db.into_iter().count() - 1) {
-                        self.pos.offset = 0.;
-                        self.layout(tree, renderer, &self.state.cash_limits.clone());
-                        shell.request_redraw();
-                    } else {
-                        self.db
-                            .clone()
-                            .into_iter()
-                            .enumerate()
-                            .skip(self.pos.current_element)
-                            .try_for_each(|(i, data)| {
-                                let mut elem = (self.get_elem)(data);
-                                let mut tree = Tree::new(elem.as_widget());
-                                let widget = elem.as_widget_mut();
-                                let size = widget
-                                    .layout(
-                                        &mut tree,
-                                        renderer,
-                                        &self.get_limits(i, widget.size(), &self.state.cash_limits),
-                                    )
-                                    .bounds()
-                                    .size();
-
-                                let size = (if self.is_vertical {
-                                    size.height
-                                } else {
-                                    size.width
-                                }) + self.spacing;
-
-                                if self.pos.offset <= size {
-                                    None
-                                } else {
-                                    self.pos.offset -= size;
-                                    self.pos.current_element += 1;
-                                    Some(())
-                                }
-                            });
-                        self.layout(tree, renderer, &self.state.cash_limits.clone());
-                        shell.request_redraw();
-                    }
-                }
-                debug!("end pos: {:?}", self.pos);
-            }
-            _ => {}
+impl Default for State {
+    fn default() -> Self {
+        Self {
+            cash_elements: Default::default(),
+            pos: Default::default(),
+            cash_limits: Limits::NONE,
         }
     }
 }
@@ -265,21 +70,14 @@ where
 {
     pub fn new(db: I, get_elem: F) -> Self {
         Self {
-            pos: Pos {
-                current_element: 5,
-                offset: 20.,
-            },
             db,
             get_elem,
             is_vertical: true,
             spacing: 10.,
-            state: State {
-                cash_elements: Default::default(),
-                cash_limits: Limits::NONE,
-            },
             width: Length::Shrink,
             height: Length::Fill,
             align: Alignment::Start,
+            cash_elem: Default::default(),
         }
     }
 
@@ -382,30 +180,35 @@ where
 
     fn get_element_and_node(
         &mut self,
+        state: &mut State,
         i: usize,
         data: &'elem D,
         children_size: &mut f32,
         renderer: &R,
         limits: &Limits,
-    ) -> (usize, CashElement<'elem, M, T, R>) {
+    ) -> (usize, CashDataElement, Element<'elem, M, T, R>) {
         let hash = {
             let mut hasher = DefaultHasher::new();
             data.hash(&mut hasher);
             hasher.finish()
         };
 
-        if let Some(mut cash_data) = self.state.cash_elements.swap_remove(&i) {
+        if let Some((mut cash_data, mut elem)) = state
+            .cash_elements
+            .swap_remove(&i)
+            .zip(self.cash_elem.swap_remove(&i))
+        {
             if cash_data.hash == hash {
                 cash_data.node = self.get_node(
                     i,
-                    cash_data.elem.as_widget_mut(),
+                    elem.as_widget_mut(),
                     children_size,
                     &mut cash_data.tree,
                     renderer,
                     limits,
                 );
                 *children_size += self.get_size(cash_data.node.bounds());
-                return (i, cash_data);
+                return (i, cash_data, elem);
             }
         }
 
@@ -422,14 +225,46 @@ where
 
         *children_size += self.get_size(node.bounds());
 
-        (
-            i,
-            CashElement {
-                hash,
-                elem,
-                tree,
-                node,
+        (i, CashDataElement { hash, tree, node }, elem)
+    }
+
+
+    fn layout_core(&mut self, state: &mut State, renderer: &R, limits: &Limits) -> Node {
+
+        debug!("layout: limits: {:?}", limits);
+        state.cash_limits = *limits;
+        (state.cash_elements, self.cash_elem) = self
+            .db
+            .into_iter()
+            .enumerate()
+            .skip(state.pos.current_element)
+            .scan(-state.pos.offset, |children_size, (i, data)| {
+                debug!("children_size ({i}): {:.2?}", children_size);
+                if self.is_vertical {
+                    *children_size <= limits.max().height
+                } else {
+                    *children_size <= limits.max().width
+                }
+                .then(|| {
+                    let (i, cash_data_elem, cash_elem) =
+                        self.get_element_and_node(state, i, data, children_size, renderer, limits);
+                    ((i, cash_data_elem), (i, cash_elem))
+                })
+            })
+            .unzip::<_, _, IndexMap<_, _>, IndexMap<_, _>>();
+
+        debug!("result layout: count: {}", state.cash_elements.len());
+
+        state.cash_elements.iter().for_each(|(i, elem)| {
+            debug!("result layout: i: {i}, bounds: {:?}", elem.node.bounds())
+        });
+
+        Node::with_children(
+            Size {
+                width: limits.max().width,
+                height: limits.max().height,
             },
+            vec![],
         )
     }
 }
@@ -450,5 +285,188 @@ where
 {
     fn from(value: VirtualizedList<'elem, D, M, T, R, I, F>) -> Self {
         Self::new(value)
+    }
+}
+
+impl<'elem, D, M, T, R, I, F> Widget<M, T, R> for VirtualizedList<'elem, D, M, T, R, I, F>
+where
+    D: Hash + 'elem,
+    R: Renderer,
+    I: IntoIterator<
+            IntoIter: Iterator<Item = &'elem D> + DoubleEndedIterator + ExactSizeIterator,
+            Item = &'elem D,
+        > + Copy,
+    F: Fn(&'elem D) -> Element<'elem, M, T, R>,
+{
+    fn state(&self) -> tree::State {
+        tree::State::Some(Box::new(State::default()) as _)
+    }
+
+    fn size(&self) -> Size<Length> {
+        Size {
+            width: self.width,
+            height: self.height,
+        }
+    }
+
+    fn layout(&mut self, tree: &mut Tree, renderer: &R, limits: &Limits) -> Node {
+        let state = tree.state.downcast_mut::<State>();
+        self.layout_core(state, renderer, limits)
+    }
+
+    fn draw(
+        &self,
+        tree: &Tree,
+        renderer: &mut R,
+        theme: &T,
+        style: &Style,
+        layout: Layout<'_>,
+        cursor: Cursor,
+        viewport: &Rectangle,
+    ) {
+        let state = tree.state.downcast_ref::<State>();
+        debug!("view_count: {}", state.cash_elements.iter().len());
+
+        let children = state
+            .cash_elements
+            .iter()
+            .map(|(_, elem)| {
+                Layout::with_offset(
+                    Vector::new(layout.position().x, layout.position().y),
+                    &elem.node,
+                )
+            })
+            .collect::<Vec<_>>();
+
+        children
+            .iter()
+            .zip(&state.cash_elements)
+            .for_each(|(layout, (i, _))| debug!("draw: i: {i}, bounds: {:?}", layout.bounds()));
+
+        renderer.with_layer(layout.bounds(), |renderer| {
+            state.cash_elements.iter().zip(self.cash_elem.iter()).for_each(|((_, cash_elem), (_, elem))| {
+                let layout = Layout::with_offset(
+                    Vector::new(layout.position().x, layout.position().y),
+                    &cash_elem.node,
+                );
+                elem.as_widget().draw(
+                    &cash_elem.tree,
+                    renderer,
+                    theme,
+                    style,
+                    layout.clone(),
+                    cursor,
+                    viewport,
+                )
+            });
+        });
+    }
+
+    fn update(
+        &mut self,
+        tree: &mut Tree,
+        event: &Event,
+        _layout: Layout<'_>,
+        _cursor: Cursor,
+        renderer: &R,
+        _clipboard: &mut dyn Clipboard,
+        shell: &mut Shell<'_, M>,
+        _viewport: &Rectangle,
+    ) {
+        let state = tree.state.downcast_mut::<State>();
+        match event {
+            Event::Mouse(iced::mouse::Event::WheelScrolled {
+                delta: ScrollDelta::Lines { x, y },
+            }) => {
+                debug!("[=============================[update]===============================]");
+                debug!("start pos: {:?}", state.pos);
+                let x = x * -60.;
+                let y = y * -60.;
+                debug!("ScrollDelta::Pixels {{ x: {x}, y: {y} }}");
+                state.pos.offset += if self.is_vertical { y } else { x };
+                debug!("pre pos: {:?}", state.pos);
+                if state.pos.offset < 0. {
+                    if state.pos.current_element == 0 {
+                        state.pos.offset = 0.;
+                        self.layout_core(state, renderer, &state.cash_limits.clone());
+                        shell.request_redraw();
+                    } else {
+                        self.db
+                            .clone()
+                            .into_iter()
+                            .enumerate()
+                            .rev()
+                            .skip(self.db.clone().into_iter().len() - state.pos.current_element)
+                            .try_for_each(|(i, data)| {
+                                let mut elem = (self.get_elem)(data);
+                                let mut tree = Tree::new(elem.as_widget());
+                                let widget = elem.as_widget_mut();
+                                let size = widget
+                                    .layout(
+                                        &mut tree,
+                                        renderer,
+                                        &self.get_limits(i, widget.size(), &state.cash_limits),
+                                    )
+                                    .bounds()
+                                    .size();
+
+                                state.pos.offset += if self.is_vertical {
+                                    size.height
+                                } else {
+                                    size.width
+                                };
+                                state.pos.current_element -= 1;
+
+                                (state.pos.offset < 0.).then_some(())
+                            });
+                        self.layout_core(state, renderer, &state.cash_limits.clone());
+                        shell.request_redraw();
+                    }
+                } else {
+                    if state.pos.current_element == (self.db.into_iter().len() - 1) {
+                        state.pos.offset = 0.;
+                        self.layout_core(state, renderer, &state.cash_limits.clone());
+                        shell.request_redraw();
+                    } else {
+                        self.db
+                            .clone()
+                            .into_iter()
+                            .enumerate()
+                            .skip(state.pos.current_element)
+                            .try_for_each(|(i, data)| {
+                                let mut elem = (self.get_elem)(data);
+                                let mut tree = Tree::new(elem.as_widget());
+                                let widget = elem.as_widget_mut();
+                                let size = widget
+                                    .layout(
+                                        &mut tree,
+                                        renderer,
+                                        &self.get_limits(i, widget.size(), &state.cash_limits),
+                                    )
+                                    .bounds()
+                                    .size();
+
+                                let size = (if self.is_vertical {
+                                    size.height
+                                } else {
+                                    size.width
+                                }) + self.spacing;
+
+                                if state.pos.offset <= size {
+                                    None
+                                } else {
+                                    state.pos.offset -= size;
+                                    state.pos.current_element += 1;
+                                    Some(())
+                                }
+                            });
+                        self.layout_core(state, renderer, &state.cash_limits.clone());
+                        shell.request_redraw();
+                    }
+                }
+                debug!("end pos: {:?}", state.pos);
+            }
+            _ => {}
+        }
     }
 }
