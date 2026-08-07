@@ -34,15 +34,14 @@ struct State {
     pos: Pos,
 }
 
-pub struct VirtualizedList<'elem, D, M, T, R, I, F>
+pub struct VirtualizedList<'elem, D, M, T, R, I>
 where
     D: 'elem,
     R: Renderer,
-    I: IntoIterator<Item = &'elem D> + Copy,
-    F: Fn(&'elem D) -> Element<'elem, M, T, R>,
+    I: IntoIterator<Item = D> + Clone,
 {
     db: I,
-    get_elem: F,
+    get_elem: fn(D) -> Element<'elem, M, T, R>,
     is_vertical: bool,
     spacing: f32,
     width: Length,
@@ -61,17 +60,16 @@ impl Default for State {
     }
 }
 
-impl<'elem, D, M, T, R, I, F> VirtualizedList<'elem, D, M, T, R, I, F>
+impl<'elem, D, M, T, R, I> VirtualizedList<'elem, D, M, T, R, I>
 where
     D: Hash + 'elem,
     R: Renderer,
     I: IntoIterator<
-            IntoIter: Iterator<Item = &'elem D> + DoubleEndedIterator + ExactSizeIterator,
-            Item = &'elem D,
-        > + Copy,
-    F: Fn(&'elem D) -> Element<'elem, M, T, R>,
+            IntoIter: Iterator<Item = D> + DoubleEndedIterator + ExactSizeIterator,
+            Item = D,
+        > + Clone,
 {
-    pub fn new(db: I, get_elem: F) -> Self {
+    pub fn new(db: I, get_elem: fn(D) -> Element<'elem, M, T, R>) -> Self {
         Self {
             db,
             get_elem,
@@ -185,7 +183,7 @@ where
         &mut self,
         state: &mut State,
         i: usize,
-        data: &'elem D,
+        data: D,
         children_size: &mut f32,
         renderer: &R,
         limits: &Limits,
@@ -193,6 +191,7 @@ where
         let hash = {
             let mut hasher = DefaultHasher::new();
             data.hash(&mut hasher);
+            self.get_elem.hash(&mut hasher);
             hasher.finish()
         };
 
@@ -236,6 +235,7 @@ where
         state.cash_limits = *limits;
         (state.cash_elements, self.cash_elem) = self
             .db
+            .clone()
             .into_iter()
             .enumerate()
             .skip(state.pos.current_element)
@@ -331,7 +331,7 @@ where
                         result = true;
                     }
                 } else {
-                    if state.pos.current_element == (self.db.into_iter().len() - 1) {
+                    if state.pos.current_element == (self.db.clone().into_iter().len() - 1) {
                         state.pos.offset = 0.;
                         self.layout_core(state, renderer, &state.cash_limits.clone());
                         shell.request_redraw();
@@ -381,7 +381,7 @@ where
     }
 }
 
-impl<'elem, D, M, T, R, I, F> From<VirtualizedList<'elem, D, M, T, R, I, F>>
+impl<'elem, D, M, T, R, I> From<VirtualizedList<'elem, D, M, T, R, I>>
     for Element<'elem, M, T, R>
 where
     D: Hash + 'elem,
@@ -389,26 +389,24 @@ where
     T: 'elem,
     R: Renderer + 'elem,
     I: IntoIterator<
-            IntoIter: Iterator<Item = &'elem D> + DoubleEndedIterator + ExactSizeIterator,
-            Item = &'elem D,
-        > + Copy
+            IntoIter: Iterator<Item = D> + DoubleEndedIterator + ExactSizeIterator,
+            Item = D,
+        > + Clone
         + 'elem,
-    F: Fn(&'elem D) -> Element<'elem, M, T, R> + 'elem,
 {
-    fn from(value: VirtualizedList<'elem, D, M, T, R, I, F>) -> Self {
+    fn from(value: VirtualizedList<'elem, D, M, T, R, I>) -> Self {
         Self::new(value)
     }
 }
 
-impl<'elem, D, M, T, R, I, F> Widget<M, T, R> for VirtualizedList<'elem, D, M, T, R, I, F>
+impl<'elem, D, M, T, R, I> Widget<M, T, R> for VirtualizedList<'elem, D, M, T, R, I>
 where
     D: Hash + 'elem,
     R: Renderer,
     I: IntoIterator<
-            IntoIter: Iterator<Item = &'elem D> + DoubleEndedIterator + ExactSizeIterator,
-            Item = &'elem D,
-        > + Copy,
-    F: Fn(&'elem D) -> Element<'elem, M, T, R>,
+            IntoIter: Iterator<Item = D> + DoubleEndedIterator + ExactSizeIterator,
+            Item = D,
+        > + Clone,
 {
     fn state(&self) -> tree::State {
         tree::State::Some(Box::new(State::default()) as _)

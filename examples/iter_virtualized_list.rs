@@ -3,18 +3,15 @@ use iced::{
     widget::{container, text},
 };
 use iced_helper::widgets::virtualized_list::VirtualizedList;
-use std::time::Instant;
-use tracing::{Level, info};
+use tracing::{Level};
 use tracing_subscriber::{filter::Targets, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
-struct TestState {
-    data: Vec<String>,
-}
+struct TestState;
 
 impl TestState {
-    fn view(state: &TestState) -> Element<'_, (), iced::Theme, iced::Renderer> {
+    fn view(_: &TestState) -> Element<'_, (), iced::Theme, iced::Renderer> {
         container(
-            container(VirtualizedList::new(&state.data, |data| {
+            container(VirtualizedList::new(0..(u32::MAX), |data| {
                 container(text!("elem: ({data})"))
                     .padding(5)
                     .style(|theme| container::success(theme))
@@ -38,22 +35,7 @@ fn main() {
         .init();
 
     iced::application::<TestState, (), iced::Theme, iced::Renderer>(
-        || TestState {
-            data: {
-                let start = Instant::now();
-                let count = 2_000u64;
-                let result = (0..count)
-                    .map(|dig| {
-                        if dig % (count / 100) == 0 {
-                            info!("load: {}%", dig / (count / 100));
-                        }
-                        format!("dig: {dig}")
-                    })
-                    .collect();
-                info!("load time: {:?}", start.elapsed());
-                result
-            },
-        },
+        || TestState,
         |_: &mut TestState, _: ()| {},
         TestState::view,
     )
