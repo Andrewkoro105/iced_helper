@@ -1,5 +1,6 @@
 use iced::{
-    Element, Program, Subscription, Theme, time, widget::{container, text}
+    Element, Renderer, Subscription, Theme, time,
+    widget::{button, container, row, text},
 };
 use iced_helper::widgets::virtualized_list::VirtualizedList;
 use std::time::{Duration, Instant};
@@ -7,22 +8,41 @@ use tracing::{Level, info};
 use tracing_subscriber::{filter::Targets, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
 struct TestState {
-    data: Vec<String>,
+    data: Vec<(u64, usize)>,
 }
 
 impl TestState {
-    fn view(state: &TestState) -> Element<'_, (), iced::Theme, iced::Renderer> {
-        container(container(VirtualizedList::new(&state.data, |data: &String| {
-            container(text!("elem: ({data})")).padding(5).style(|theme|{
-            container::success(theme)
-        }).into()
-        }))
-        .style(|theme|{
-            container::warning(theme)
-        }))
+    fn view(state: &TestState) -> Element<'_, TestMessage, iced::Theme, iced::Renderer> {
+        container(
+            container(VirtualizedList::new(&state.data, |data| {
+                let data_str = if (data.0 / 100) % 2 == 0 {
+                    format!("{}\n", data.0).repeat(data.1)
+                } else {
+                    data.0.to_string()
+                };
+                container(
+                    row![
+                        text!("elem: (\n{data_str})"),
+                        button("add").on_press(TestMessage::AddInElem(data.0, 1))
+                    ]
+                    .spacing(10),
+                )
+                .padding(5)
+                .style(|theme| container::success(theme))
+                .into()
+            }))
+            .style(|theme| container::warning(theme)),
+        )
         .padding(100)
         .into()
     }
+}
+
+#[derive(Debug, Clone)]
+enum TestMessage {
+    Add(u64),
+    AddInElem(u64, u64),
+    Nl(usize),
 }
 
 fn main() {
@@ -35,29 +55,31 @@ fn main() {
         .with(filter)
         .init();
 
-    iced::application::<TestState, (), iced::Theme, iced::Renderer>(
+    iced::application::<TestState, TestMessage, Theme, Renderer>(
         || TestState {
             data: {
                 let start = Instant::now();
                 let count = 2_000u64;
-                let result = (0..count)
-                    .map(|dig| {
-                        if dig % (count / 100) == 0 {
-                            info!("load: {}%", dig / (count / 100));
-                        }
-                        format!("dig: {dig}")
-                    })
-                    .collect();
+                let result = (0..count).zip(std::iter::repeat(1)).collect();
                 info!("load time: {:?}", start.elapsed());
                 result
             },
         },
-        |_: &mut TestState, _: ()| {},
+        |this: &mut TestState, message: TestMessage| match message {
+            TestMessage::Add(add) => this.data.iter_mut().for_each(|(a, _)| *a += add),
+            TestMessage::Nl(a) => this.data.iter_mut().for_each(|(_, b)| *b += a),
+            TestMessage::AddInElem(i, add) => {
+                this.data.iter_mut().find(|(a, _)| *a == i).unwrap().0 += add
+            }
+        },
         TestState::view,
     )
     .theme(Theme::Dark)
     .subscription(|_: &TestState| {
-        time::repeat(|| async {()}, Duration::from_secs(2))
+        Subscription::batch(vec![
+            time::repeat(|| async { TestMessage::Add(2) }, Duration::from_secs(2)),
+            time::repeat(|| async { TestMessage::Nl(1) }, Duration::from_secs(5)),
+        ])
     })
     .run()
     .unwrap();
