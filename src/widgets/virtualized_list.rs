@@ -1,11 +1,13 @@
 use iced::{
-    Alignment, Element, Event, Length, Pixels, Rectangle, Size, Vector, advanced::{
+    Alignment, Element, Event, Length, Pixels, Rectangle, Size, Vector,
+    advanced::{
         Clipboard, Layout, Renderer, Shell, Widget,
         layout::{Limits, Node},
         mouse,
         renderer::Style,
         widget::{Tree, tree},
-    }, mouse::{Cursor, ScrollDelta}
+    },
+    mouse::{Cursor, ScrollDelta},
 };
 use indexmap::IndexMap;
 use std::{
@@ -14,7 +16,7 @@ use std::{
 };
 use tracing::debug;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct Pos {
     pub current_element: usize,
     pub offset: f32,
@@ -43,12 +45,31 @@ where
 {
     db: I,
     get_elem: fn(D) -> Element<'elem, M, T, R>,
+    user_scroll: Option<Pos>,
+    on_scroll: Option<Box<dyn Fn(Pos) -> M + 'elem>>,
     is_vertical: bool,
     spacing: f32,
     width: Length,
     height: Length,
     align: Alignment,
+    speed_scroll: f32,
     cash_elem: IndexMap<usize, Element<'elem, M, T, R>>,
+}
+
+impl Pos {
+    pub fn new(current_element: usize, offset: f32) -> Self {
+        Self {
+            current_element,
+            offset,
+        }
+    }
+
+    pub fn from_index(current_element: usize) -> Self {
+        Self {
+            current_element,
+            offset: 0.,
+        }
+    }
 }
 
 impl Default for State {
@@ -74,11 +95,14 @@ where
         Self {
             db,
             get_elem,
+            user_scroll: None,
+            on_scroll: None,
             is_vertical: true,
             spacing: 0.,
             width: Length::Shrink,
             height: Length::Fill,
             align: Alignment::Start,
+            speed_scroll: 60.,
             cash_elem: Default::default(),
         }
     }
@@ -111,6 +135,36 @@ where
     pub fn horizontal(mut self) -> Self {
         self.is_vertical = false;
         self
+    }
+
+    pub fn on_scroll(mut self, on_scroll: impl Fn(Pos) -> M + 'elem) -> Self {
+        self.on_scroll = Some(Box::new(on_scroll) as _);
+        self
+    }
+
+    pub fn scroll_to(mut self, scroll: Pos) -> Self {
+        self.user_scroll = Some(scroll);
+        self
+    }
+
+    fn scroll_publish(&self, size: Option<f32>, renderer: &R, shell: &mut Shell<M>, state: &State) {
+        if let Some(on_scroll) = self.on_scroll.as_ref() {
+            let mut pos = state.pos;
+            pos.offset /= size.unwrap_or_else(|| {
+                self.get_size_element(
+                    pos.current_element,
+                    self.db
+                        .clone()
+                        .into_iter()
+                        .skip(pos.current_element)
+                        .next()
+                        .unwrap(),
+                    renderer,
+                    &state.cash_limits,
+                )
+            });
+            shell.publish((on_scroll)(pos))
+        }
     }
 
     fn get_limits(&self, i: usize, size: Size<Length>, limits: &Limits) -> Limits {
@@ -202,12 +256,28 @@ where
         node
     }
 
-    fn get_size(&self, rectangle: Rectangle) -> f32 {
+    fn get_size(&self, size: Size) -> f32 {
         (if self.is_vertical {
-            rectangle.height
+            size.height
         } else {
-            rectangle.width
+            size.width
         }) + self.spacing
+    }
+
+    fn get_size_element(&self, i: usize, data: D, renderer: &R, limits: &Limits) -> f32 {
+        let mut elem = (self.get_elem)(data);
+        let mut tree = Tree::new(elem.as_widget());
+        let widget = elem.as_widget_mut();
+        self.get_size(
+            widget
+                .layout(
+                    &mut tree,
+                    renderer,
+                    &self.get_limits(i, widget.size(), limits),
+                )
+                .bounds()
+                .size(),
+        )
     }
 
     fn get_element_and_node(
@@ -240,7 +310,7 @@ where
                     renderer,
                     limits,
                 );
-                *children_size += self.get_size(cash_data.node.bounds());
+                *children_size += self.get_size(cash_data.node.bounds().size());
                 return (i, cash_data, elem);
             }
         }
@@ -256,7 +326,7 @@ where
             limits,
         );
 
-        *children_size += self.get_size(node.bounds());
+        *children_size += self.get_size(node.bounds().size());
 
         (i, CashDataElement { hash, tree, node }, elem)
     }
@@ -318,96 +388,90 @@ where
             }) => {
                 debug!("[=============================[update]===============================]");
                 debug!("start pos: {:?}", state.pos);
-                let x = x * -60.;
-                let y = y * -60.;
-                debug!("ScrollDelta::Pixels {{ x: {x}, y: {y} }}");
-                state.pos.offset += if self.is_vertical { y } else { x };
+                let db_end = self.db.clone().into_iter().len() - 1;
+                let x = x * self.speed_scroll;
+                let y = y * self.speed_scroll;
+                let scroll = -if self.is_vertical { y } else { x };
+                debug!("ScrollDelta::Pixels: {scroll}");
+                state.pos.offset += scroll;
                 debug!("pre pos: {:?}", state.pos);
                 if state.pos.offset < 0. {
-                    if state.pos.current_element == 0 {
-                        state.pos.offset = 0.;
-                        self.layout_core(state, renderer, &state.cash_limits.clone());
-                        shell.request_redraw();
-                    } else {
-                        self.db
-                            .clone()
-                            .into_iter()
-                            .enumerate()
-                            .rev()
-                            .skip(self.db.clone().into_iter().len() - state.pos.current_element)
-                            .try_for_each(|(i, data)| {
-                                let mut elem = (self.get_elem)(data);
-                                let mut tree = Tree::new(elem.as_widget());
-                                let widget = elem.as_widget_mut();
-                                let size = widget
-                                    .layout(
-                                        &mut tree,
+                    if !(state.pos.current_element == 0 && state.pos.offset - scroll == 0.) {
+                        if state.pos.current_element == 0 {
+                            state.pos.offset = 0.;
+                            self.scroll_publish(None, renderer, shell, state);
+                        } else {
+                            self.db
+                                .clone()
+                                .into_iter()
+                                .enumerate()
+                                .rev()
+                                .skip(self.db.clone().into_iter().len() - state.pos.current_element)
+                                .try_for_each(|(i, data)| {
+                                    let size = self.get_size_element(
+                                        i,
+                                        data,
                                         renderer,
-                                        &self.get_limits(i, widget.size(), &state.cash_limits),
-                                    )
-                                    .bounds()
-                                    .size();
+                                        &state.cash_limits,
+                                    );
+                                    state.pos.offset += size;
+                                    state.pos.current_element -= 1;
 
-                                state.pos.offset += (if self.is_vertical {
-                                    size.height
-                                } else {
-                                    size.width
-                                }) + self.spacing;
-                                state.pos.current_element -= 1;
+                                    self.scroll_publish(Some(size), renderer, shell, state);
 
-                                (state.pos.offset < 0.).then_some(())
-                            });
-                        self.layout_core(state, renderer, &state.cash_limits.clone());
-                        shell.request_redraw();
+                                    (state.pos.offset < 0.).then_some(())
+                                });
+                        }
                         result = true;
+                    } else {
+                        state.pos.offset -= scroll;
                     }
                 } else {
-                    if state.pos.current_element == (self.db.clone().into_iter().len() - 1) {
-                        state.pos.offset = 0.;
-                        self.layout_core(state, renderer, &state.cash_limits.clone());
-                        shell.request_redraw();
-                    } else {
-                        self.db
-                            .clone()
-                            .into_iter()
-                            .enumerate()
-                            .skip(state.pos.current_element)
-                            .try_for_each(|(i, data)| {
-                                let mut elem = (self.get_elem)(data);
-                                let mut tree = Tree::new(elem.as_widget());
-                                let widget = elem.as_widget_mut();
-                                let size = widget
-                                    .layout(
-                                        &mut tree,
+                    if !(state.pos.current_element == db_end && state.pos.offset - scroll == 0.) {
+                        if state.pos.current_element >= db_end {
+                            state.pos.current_element = db_end;
+                            state.pos.offset = 0.;
+                            self.scroll_publish(None, renderer, shell, state);
+                        } else {
+                            self.db
+                                .clone()
+                                .into_iter()
+                                .enumerate()
+                                .skip(state.pos.current_element)
+                                .try_for_each(|(i, data)| {
+                                    let size = self.get_size_element(
+                                        i,
+                                        data,
                                         renderer,
-                                        &self.get_limits(i, widget.size(), &state.cash_limits),
-                                    )
-                                    .bounds()
-                                    .size();
+                                        &state.cash_limits,
+                                    );
 
-                                let size = (if self.is_vertical {
-                                    size.height
-                                } else {
-                                    size.width
-                                }) + self.spacing;
-
-                                if state.pos.offset <= size {
-                                    None
-                                } else {
-                                    state.pos.offset -= size;
-                                    state.pos.current_element += 1;
-                                    Some(())
-                                }
-                            });
-                        self.layout_core(state, renderer, &state.cash_limits.clone());
-                        shell.request_redraw();
+                                    if state.pos.offset <= size {
+                                        None
+                                    } else {
+                                        state.pos.offset -= size;
+                                        state.pos.current_element += 1;
+                                        self.scroll_publish(Some(size), renderer, shell, state);
+                                        Some(())
+                                    }
+                                });
+                        }
                         result = true;
+                    } else {
+                        state.pos.offset -= scroll;
                     }
                 }
                 debug!("end pos: {:?}", state.pos);
             }
             _ => {}
         }
+
+        if result {
+            self.layout_core(state, renderer, &state.cash_limits.clone());
+            shell.request_redraw();
+            debug!("update result: {result}");
+        }
+
         result
     }
 }
@@ -451,6 +515,23 @@ where
 
     fn layout(&mut self, tree: &mut Tree, renderer: &R, limits: &Limits) -> Node {
         let state = tree.state.downcast_mut::<State>();
+        if let Some(mut scroll) = self.user_scroll {
+            let data = self
+                .db
+                .clone()
+                .into_iter()
+                .skip(scroll.current_element)
+                .next();
+            if let Some(data) = data {
+                scroll.offset *= self.get_size_element(
+                    scroll.current_element,
+                    data,
+                    renderer,
+                    &state.cash_limits,
+                );
+                state.pos = scroll;
+            }
+        }
         self.layout_core(state, renderer, limits)
     }
 
@@ -516,7 +597,9 @@ where
         let updated = self.my_update(
             state, event, layout, cursor, renderer, clipboard, shell, viewport,
         );
-        if !updated {
+        if updated {
+            shell.capture_event();
+        } else {
             state
                 .cash_elements
                 .iter_mut()

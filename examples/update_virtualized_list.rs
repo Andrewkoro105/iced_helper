@@ -2,7 +2,7 @@ use iced::{
     Element, Renderer, Subscription, Theme, time,
     widget::{button, container, row, text},
 };
-use iced_helper::widgets::virtualized_list::VirtualizedList;
+use iced_helper::widgets::virtualized_list::{Pos, VirtualizedList};
 use std::time::{Duration, Instant};
 use tracing::{Level, info};
 use tracing_subscriber::{filter::Targets, fmt, layer::SubscriberExt, util::SubscriberInitExt};
@@ -14,23 +14,28 @@ struct TestState {
 impl TestState {
     fn view(state: &TestState) -> Element<'_, TestMessage, iced::Theme, iced::Renderer> {
         container(
-            container(VirtualizedList::new(state.data.iter().enumerate(), |(i, data)| {
-                let data_str = if (i / 100) % 2 == 0 {
-                    format!("{}\n", data.0).repeat(data.1)
-                } else {
-                    data.0.to_string()
-                };
-                container(
-                    row![
-                        text!("elem: (\n{data_str})"),
-                        button("add").on_press(TestMessage::AddInElem(data.0, 1))
-                    ]
-                    .spacing(10),
-                )
-                .padding(5)
-                .style(|theme| container::success(theme))
-                .into()
-            }).spacing(1000))
+            container(
+                VirtualizedList::new(state.data.iter().enumerate(), |(i, data)| {
+                    let data_str = if (i / 100) % 2 == 0 {
+                        format!("{}\n", data.0).repeat(data.1)
+                    } else {
+                        data.0.to_string()
+                    };
+                    container(
+                        row![
+                            text!("elem: (\n{data_str})"),
+                            button("add").on_press(TestMessage::AddInElem(data.0, 1))
+                        ]
+                        .spacing(10),
+                    )
+                    .padding(5)
+                    .style(|theme| container::success(theme))
+                    .into()
+                })
+                .spacing(15)
+                .on_scroll(TestMessage::Scroll)
+                .scroll_to(Pos::new(5, 0.5)),
+            )
             .style(|theme| container::warning(theme)),
         )
         .padding(100)
@@ -43,11 +48,12 @@ enum TestMessage {
     Add(u64),
     AddInElem(u64, u64),
     Nl(usize),
+    Scroll(Pos),
 }
 
 fn main() {
     let filter = Targets::new()
-        .with_target("iced_helper", Level::DEBUG)
+        //.with_target("iced_helper", Level::DEBUG)
         .with_default(Level::INFO);
 
     tracing_subscriber::registry()
@@ -71,14 +77,15 @@ fn main() {
             TestMessage::AddInElem(i, add) => {
                 this.data.iter_mut().find(|(a, _)| *a == i).unwrap().0 += add
             }
+            TestMessage::Scroll(a) => info!("{a:?}"),
         },
         TestState::view,
     )
     .theme(Theme::Dark)
     .subscription(|_: &TestState| {
         Subscription::batch(vec![
-            time::repeat(|| async { TestMessage::Add(2) }, Duration::from_secs(2)),
-            time::repeat(|| async { TestMessage::Nl(1) }, Duration::from_secs(5)),
+            //time::repeat(|| async { TestMessage::Add(2) }, Duration::from_secs(2)),
+            //time::repeat(|| async { TestMessage::Nl(1) }, Duration::from_secs(5)),
         ])
     })
     .run()

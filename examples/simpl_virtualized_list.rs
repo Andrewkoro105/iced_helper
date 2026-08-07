@@ -41,7 +41,7 @@ fn main() {
         || TestState {
             data: {
                 let start = Instant::now();
-                let count = 2_000u64;
+                let count = 200u64;
                 let result = (0..count)
                     .map(|dig| {
                         if dig % (count / 100) == 0 {

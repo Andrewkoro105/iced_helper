@@ -1,6 +1,6 @@
 use iced::{
     Element, Theme,
-    widget::{container, text},
+    widget::{container, text, scrollable},
 };
 use iced_helper::widgets::virtualized_list::VirtualizedList;
 use tracing::{Level};
@@ -16,7 +16,7 @@ impl TestState {
                     .padding(5)
                     .style(|theme| container::success(theme))
                     .into()
-            }).spacing(100))
+            }).spacing(15))
             .style(|theme| container::warning(theme)),
         )
         .padding(100)
