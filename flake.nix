@@ -5,6 +5,14 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     rust-overlay.url = "github:oxalica/rust-overlay";
+    crane = {
+      url = "github:ipetkov/crane";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    comet = {
+      url = "github:iced-rs/comet";
+      flake = false;
+    };
   };
 
   outputs =
@@ -13,6 +21,8 @@
       nixpkgs,
       rust-overlay,
       flake-utils,
+      comet,
+      crane,
     }:
     flake-utils.lib.eachDefaultSystem (
       system:
@@ -24,16 +34,8 @@
 
         rust-toolchain = pkgs.rust-bin.stable.latest.default.override {
           extensions = [ "rust-src" ];
-          targets = [  ];
+          targets = [ ];
         };
-
-        buildTools = with pkgs; [
-          rust-toolchain
-          libllvm
-          clang
-          lld
-          wine
-        ];
 
         devLibs = with pkgs; [
           libxkbcommon
@@ -50,6 +52,29 @@
           vulkan-validation-layers
           mesa
           vulkan-tools
+        ];
+
+        craneLib = crane.mkLib pkgs;
+
+        commonArgs = {
+          src = comet;
+          nativeBuildInputs = with pkgs; [ pkg-config ];
+          buildInputs = with pkgs; [ openssl ] ++ pkgs.lib.optionals pkgs.stdenv.isLinux [ xorg.libX11 xorg.libXrandr ];
+        };
+
+        cargoArtifacts = craneLib.buildDepsOnly commonArgs;
+
+        iced_comet = craneLib.buildPackage (commonArgs // {
+          inherit cargoArtifacts;
+        });
+
+        buildTools = with pkgs; [
+          rust-toolchain
+          libllvm
+          clang
+          lld
+          wine
+          iced_comet
         ];
       in
       {

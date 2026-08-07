@@ -25,6 +25,7 @@ struct CashElement<'elem, M, T, R> {
     hash: u64,
     elem: Element<'elem, M, T, R>,
     tree: Tree,
+    node: Node,
 }
 
 struct State<'elem, M, T, R> {
@@ -70,7 +71,7 @@ where
     fn layout(&mut self, _tree: &mut Tree, renderer: &R, limits: &Limits) -> Node {
         debug!("layout: limits: {:?}", limits);
         self.state.cash_limits = *limits;
-        let (elements, nodes) = self
+        self.state.cash_elements = self
             .db
             .into_iter()
             .enumerate()
@@ -84,21 +85,20 @@ where
                 }
                 .then(|| self.get_element_and_node(i, data, children_size, renderer, limits))
             })
-            .unzip::<_, _, IndexMap<_, _>, Vec<_>>();
+            .collect::<IndexMap<_, _>>();
 
-        self.state.cash_elements = elements;
+        debug!("result layout: count: {}", self.state.cash_elements.len());
 
-        nodes
-            .iter()
-            .zip(&self.state.cash_elements)
-            .for_each(|(node, (i, _))| debug!("result layout: i: {i}, bounds: {:?}", node.bounds()));
+        self.state.cash_elements.iter().for_each(|(i, elem)| {
+            debug!("result layout: i: {i}, bounds: {:?}", elem.node.bounds())
+        });
 
         Node::with_children(
             Size {
                 width: limits.max().width,
                 height: limits.max().height,
             },
-            nodes,
+            vec![],
         )
     }
 
@@ -113,24 +113,39 @@ where
         viewport: &Rectangle,
     ) {
         debug!("view_count: {}", self.state.cash_elements.iter().count());
-        layout.children()
-            .zip(&self.state.cash_elements)
-            .for_each(|(layout, (i, _))| debug!("draw: i: {i}, bounds: {:?}", layout.bounds()));
-        self.state
+        let children = self
+            .state
             .cash_elements
             .iter()
-            .zip(layout.children())
-            .for_each(|((_, cash_elem), layout)| {
-                cash_elem.elem.as_widget().draw(
-                    &cash_elem.tree,
-                    renderer,
-                    theme,
-                    style,
-                    layout,
-                    cursor,
-                    viewport,
+            .map(|(_, elem)| {
+                Layout::with_offset(
+                    Vector::new(layout.position().x, layout.position().y),
+                    &elem.node,
                 )
-            });
+            })
+            .collect::<Vec<_>>();
+        children
+            .iter()
+            .zip(&self.state.cash_elements)
+            .for_each(|(layout, (i, _))| debug!("draw: i: {i}, bounds: {:?}", layout.bounds()));
+
+        renderer.with_layer(layout.bounds(), |renderer| {
+            self.state
+                .cash_elements
+                .iter()
+                .zip(&children)
+                .for_each(|((_, cash_elem), layout)| {
+                    cash_elem.elem.as_widget().draw(
+                        &cash_elem.tree,
+                        renderer,
+                        theme,
+                        style,
+                        layout.clone(),
+                        cursor,
+                        viewport,
+                    )
+                });
+        });
     }
 
     fn update(
@@ -148,14 +163,18 @@ where
             Event::Mouse(iced::mouse::Event::WheelScrolled {
                 delta: ScrollDelta::Lines { x, y },
             }) => {
+                debug!("[=============================[update]===============================]");
                 debug!("start pos: {:?}", self.pos);
                 let x = x * -60.;
                 let y = y * -60.;
                 debug!("ScrollDelta::Pixels {{ x: {x}, y: {y} }}");
                 self.pos.offset += if self.is_vertical { y } else { x };
+                debug!("pre pos: {:?}", self.pos);
                 if self.pos.offset < 0. {
                     if self.pos.current_element == 0 {
                         self.pos.offset = 0.;
+                        self.layout(tree, renderer, &self.state.cash_limits.clone());
+                        shell.request_redraw();
                     } else {
                         self.db
                             .clone()
@@ -185,13 +204,14 @@ where
 
                                 (self.pos.offset < 0.).then_some(())
                             });
-                        debug!("self.layout(tree, renderer, &self.state.cash_limits.clone());");
                         self.layout(tree, renderer, &self.state.cash_limits.clone());
                         shell.request_redraw();
                     }
                 } else {
                     if self.pos.current_element == (self.db.into_iter().count() - 1) {
                         self.pos.offset = 0.;
+                        self.layout(tree, renderer, &self.state.cash_limits.clone());
+                        shell.request_redraw();
                     } else {
                         self.db
                             .clone()
@@ -211,16 +231,20 @@ where
                                     .bounds()
                                     .size();
 
-                                self.pos.offset = if self.is_vertical {
+                                let size = (if self.is_vertical {
                                     size.height
                                 } else {
                                     size.width
-                                };
-                                self.pos.current_element += 1;
+                                }) + self.spacing;
 
-                                (self.pos.offset < 0.).then_some(())
+                                if self.pos.offset <= size {
+                                    None
+                                } else {
+                                    self.pos.offset -= size;
+                                    self.pos.current_element += 1;
+                                    Some(())
+                                }
                             });
-                        debug!("self.layout(tree, renderer, &self.state.cash_limits.clone());");
                         self.layout(tree, renderer, &self.state.cash_limits.clone());
                         shell.request_redraw();
                     }
@@ -321,7 +345,7 @@ where
         &self,
         i: usize,
         widget: &mut dyn Widget<M, T, R>,
-        children_size: &mut f32,
+        children_size: &f32,
         tree: &mut Tree,
         renderer: &R,
         limits: &Limits,
@@ -345,14 +369,15 @@ where
                 x: if self.is_vertical { 0. } else { *children_size },
                 y: if self.is_vertical { *children_size } else { 0. },
             });
-
-        *children_size += if self.is_vertical {
-            node.bounds().height
-        } else {
-            node.bounds().width
-        } + self.spacing;
-
         node
+    }
+
+    fn get_size(&self, rectangle: Rectangle) -> f32 {
+        (if self.is_vertical {
+            rectangle.height
+        } else {
+            rectangle.width
+        }) + self.spacing
     }
 
     fn get_element_and_node(
@@ -362,7 +387,7 @@ where
         children_size: &mut f32,
         renderer: &R,
         limits: &Limits,
-    ) -> ((usize, CashElement<'elem, M, T, R>), Node) {
+    ) -> (usize, CashElement<'elem, M, T, R>) {
         let hash = {
             let mut hasher = DefaultHasher::new();
             data.hash(&mut hasher);
@@ -371,7 +396,7 @@ where
 
         if let Some(mut cash_data) = self.state.cash_elements.swap_remove(&i) {
             if cash_data.hash == hash {
-                let node = self.get_node(
+                cash_data.node = self.get_node(
                     i,
                     cash_data.elem.as_widget_mut(),
                     children_size,
@@ -379,7 +404,8 @@ where
                     renderer,
                     limits,
                 );
-                return ((i, cash_data), node);
+                *children_size += self.get_size(cash_data.node.bounds());
+                return (i, cash_data);
             }
         }
 
@@ -394,7 +420,17 @@ where
             limits,
         );
 
-        ((i, CashElement { hash, elem, tree }), node)
+        *children_size += self.get_size(node.bounds());
+
+        (
+            i,
+            CashElement {
+                hash,
+                elem,
+                tree,
+                node,
+            },
+        )
     }
 }
 

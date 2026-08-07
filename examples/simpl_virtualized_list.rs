@@ -39,9 +39,10 @@ fn main() {
         || TestState {
             data: {
                 let start = Instant::now();
-                let result = (0..10000)
+                let count = 10_000_000u64;
+                let result = (0..count)
                     .map(|dig| {
-                        if dig % 100 == 0 {
+                        if dig % (count / 100) == 0 {
                             info!("load: {dig}");
                         }
                         format!("dig: {dig}")
