@@ -1,6 +1,12 @@
 [package]
 name = "iced_helper"
 version = "0.1.0"
+authors = ["Andrewkoro105"]
+license = "MIT"
+repository = "https://github.com/Andrewkoro105/iced_helper"
+description = "A small set of auxiliary functions for working with iced"
+keywords = ["iced"]
+categories = ["gui"]
 edition = "2024"
 
 [dependencies]
