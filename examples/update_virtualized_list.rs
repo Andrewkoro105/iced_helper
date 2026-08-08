@@ -1,8 +1,10 @@
 use iced::{
-    Element, Renderer, Subscription, Theme, time,
-    widget::{button, container, row, text},
+    Element, Renderer, Subscription, Task, Theme, time,
+    widget::{Id, button, container, row, text},
 };
-use iced_helper::widgets::virtualized_list::{Pos, VirtualizedList};
+use iced_helper::widgets::virtualized_list::{
+    Pos, VirtualizedList, operations::scroll_to::scroll_to,
+};
 use std::time::{Duration, Instant};
 use tracing::{Level, info};
 use tracing_subscriber::{filter::Targets, fmt, layer::SubscriberExt, util::SubscriberInitExt};
@@ -34,7 +36,7 @@ impl TestState {
                 })
                 .spacing(15)
                 .on_scroll(TestMessage::Scroll)
-                .scroll_to(Pos::new(5, 0.5)),
+                .set_id(Id::new("vl")),
             )
             .style(|theme| container::warning(theme)),
         )
@@ -49,6 +51,7 @@ enum TestMessage {
     AddInElem(u64, u64),
     Nl(usize),
     Scroll(Pos),
+    SetScroll(Pos),
 }
 
 fn main() {
@@ -71,21 +74,35 @@ fn main() {
                 result
             },
         },
-        |this: &mut TestState, message: TestMessage| match message {
-            TestMessage::Add(add) => this.data.iter_mut().for_each(|(a, _)| *a += add),
-            TestMessage::Nl(a) => this.data.iter_mut().for_each(|(_, b)| *b += a),
-            TestMessage::AddInElem(i, add) => {
-                this.data.iter_mut().find(|(a, _)| *a == i).unwrap().0 += add
+        |this: &mut TestState, message: TestMessage| -> Task<TestMessage> {
+            match message {
+                TestMessage::Add(add) => {
+                    this.data.iter_mut().for_each(|(a, _)| *a += add);
+                    Task::none()
+                }
+                TestMessage::Nl(a) => {
+                    this.data.iter_mut().for_each(|(_, b)| *b += a);
+                    Task::none()
+                }
+                TestMessage::AddInElem(i, add) => {
+                    this.data.iter_mut().find(|(a, _)| *a == i).unwrap().0 += add;
+                    Task::none()
+                }
+                TestMessage::Scroll(pos) => {
+                    info!("{pos:?}");
+                    Task::none()
+                }
+                TestMessage::SetScroll(pos) => scroll_to(Id::new("vl"), pos),
             }
-            TestMessage::Scroll(a) => info!("{a:?}"),
         },
         TestState::view,
     )
     .theme(Theme::Dark)
     .subscription(|_: &TestState| {
         Subscription::batch(vec![
-            //time::repeat(|| async { TestMessage::Add(2) }, Duration::from_secs(2)),
-            //time::repeat(|| async { TestMessage::Nl(1) }, Duration::from_secs(5)),
+            time::repeat(|| async { TestMessage::Add(2) }, Duration::from_secs(2)),
+            time::repeat(|| async { TestMessage::Nl(1) }, Duration::from_secs(5)),
+            time::repeat(|| async { TestMessage::SetScroll(Pos::new(4, 0.5)) }, Duration::from_secs(10)),
         ])
     })
     .run()

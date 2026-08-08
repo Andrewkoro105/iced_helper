@@ -1,6 +1,6 @@
 use iced::{
     Element, Theme,
-    widget::{container, text, scrollable},
+    widget::{container, text},
 };
 use iced_helper::widgets::virtualized_list::VirtualizedList;
 use tracing::{Level};

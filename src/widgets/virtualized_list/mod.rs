@@ -1,3 +1,5 @@
+pub mod operations;
+
 use iced::{
     Alignment, Element, Event, Length, Pixels, Rectangle, Size, Vector,
     advanced::{
@@ -8,6 +10,7 @@ use iced::{
         widget::{Tree, tree},
     },
     mouse::{Cursor, ScrollDelta},
+    widget::Id,
 };
 use indexmap::IndexMap;
 use std::{
@@ -32,6 +35,7 @@ struct State {
     cash_elements: IndexMap<usize, CashDataElement>,
     cash_limits: Limits,
     pos: Pos,
+    user_pos: Option<Pos>,
 }
 
 pub struct VirtualizedList<'elem, D, M, T, R, I>
@@ -43,9 +47,9 @@ where
             Item = D,
         > + Clone,
 {
+    id: Option<Id>,
     db: I,
     get_elem: fn(D) -> Element<'elem, M, T, R>,
-    user_scroll: Option<Pos>,
     on_scroll: Option<Box<dyn Fn(Pos) -> M + 'elem>>,
     is_vertical: bool,
     spacing: f32,
@@ -78,6 +82,7 @@ impl Default for State {
             cash_elements: Default::default(),
             pos: Default::default(),
             cash_limits: Limits::NONE,
+            user_pos: Default::default(),
         }
     }
 }
@@ -93,9 +98,9 @@ where
 {
     pub fn new(db: I, get_elem: fn(D) -> Element<'elem, M, T, R>) -> Self {
         Self {
+            id: None,
             db,
             get_elem,
-            user_scroll: None,
             on_scroll: None,
             is_vertical: true,
             spacing: 0.,
@@ -142,8 +147,8 @@ where
         self
     }
 
-    pub fn scroll_to(mut self, scroll: Pos) -> Self {
-        self.user_scroll = Some(scroll);
+    pub fn set_id(mut self, id: Id) -> Self {
+        self.id = Some(id);
         self
     }
 
@@ -515,7 +520,8 @@ where
 
     fn layout(&mut self, tree: &mut Tree, renderer: &R, limits: &Limits) -> Node {
         let state = tree.state.downcast_mut::<State>();
-        if let Some(mut scroll) = self.user_scroll {
+        if let Some(mut scroll) = state.user_pos {
+            state.user_pos = None;
             let data = self
                 .db
                 .clone()
@@ -660,20 +666,24 @@ where
         operation: &mut dyn iced::advanced::widget::Operation,
     ) {
         let state = tree.state.downcast_mut::<State>();
-        state
-            .cash_elements
-            .iter_mut()
-            .zip(self.cash_elem.iter_mut())
-            .for_each(|((_, data), (_, elem))| {
-                elem.as_widget_mut().operate(
-                    &mut data.tree,
-                    Layout::with_offset(
-                        Vector::new(layout.position().x, layout.position().y),
-                        &data.node,
-                    ),
-                    renderer,
-                    operation,
-                );
-            });
+
+        operation.custom(self.id.as_ref(), layout.bounds(), state);
+        operation.traverse(&mut |operation| {
+            state
+                .cash_elements
+                .iter_mut()
+                .zip(self.cash_elem.iter_mut())
+                .for_each(|((_, data), (_, elem))| {
+                    elem.as_widget_mut().operate(
+                        &mut data.tree,
+                        Layout::with_offset(
+                            Vector::new(layout.position().x, layout.position().y),
+                            &data.node,
+                        ),
+                        renderer,
+                        operation,
+                    );
+                });
+        })
     }
 }
