@@ -1,5 +1,7 @@
 use iced::{Point, Rectangle};
 
+use crate::widgets::virtualized_list::ScrollBarState;
+
 #[derive(Default, Debug)]
 pub struct State {
     pub pos: f32,
@@ -10,7 +12,7 @@ pub struct State {
 
 impl State {
     pub fn get_view(&self) -> f32 {
-        self.view.unwrap_or(0.1)
+        self.view.unwrap_or(0.02)
     }
 
     pub fn get_scroller_bounds(&self, is_vertical: bool, base_bounds: &Rectangle) -> Rectangle {
@@ -62,5 +64,12 @@ impl State {
             (cursor.x - base_bounds.x - self.offset.unwrap_or(0.)) / base_bounds.width
         }
         .clamp(0., 1.)
+    }
+}
+
+impl ScrollBarState for State {
+    fn set_pos_and_view(&mut self, pos: f32, view: f32) {
+        self.pos = pos;
+        self.view = Some(view);
     }
 }

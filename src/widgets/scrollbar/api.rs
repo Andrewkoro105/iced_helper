@@ -1,4 +1,9 @@
-use crate::widgets::scrollbar::{ScrollBar, style};
+use iced::advanced::Renderer;
+
+use crate::widgets::{
+    scrollbar::{ScrollBar, style},
+    virtualized_list,
+};
 
 pub fn scrollbar<'elem, M: 'elem, T: style::Catalog + 'elem>() -> ScrollBar<'elem, M, T> {
     ScrollBar::new()
@@ -29,8 +34,12 @@ impl<'elem, M: 'elem, T: style::Catalog + 'elem> ScrollBar<'elem, M, T> {
         self.on_scroll = Some(Box::new(on_scroll));
         self
     }
+}
 
-    pub fn mut_on_scroll(mut self, mut_on_scroll: impl FnMut(f32) + 'elem) -> Self {
+impl<'elem, M: 'elem, T: style::Catalog + 'elem, R: Renderer>
+    virtualized_list::ScrollBar<'elem, M, T, R> for ScrollBar<'elem, M, T>
+{
+    fn mut_on_scroll(mut self, mut_on_scroll: impl FnMut(f32) + 'elem) -> Self {
         self.mut_on_scroll = Some(Box::new(mut_on_scroll));
         self
     }

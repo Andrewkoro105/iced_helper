@@ -56,7 +56,7 @@ enum TestMessage {
 
 fn main() {
     let filter = Targets::new()
-        //.with_target("iced_helper", Level::DEBUG)
+        .with_target("iced_helper", Level::DEBUG)
         .with_default(Level::INFO);
 
     tracing_subscriber::registry()

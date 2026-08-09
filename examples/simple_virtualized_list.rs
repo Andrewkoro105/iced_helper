@@ -19,7 +19,7 @@ impl TestState {
                     .padding(5)
                     .style(|theme| container::success(theme))
                     .into()
-            }))
+            }).spacing(100))
             .style(|theme| container::warning(theme)),
         )
         .padding(100)

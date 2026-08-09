@@ -1,6 +1,9 @@
-use crate::widgets::virtualized_list::{Pos, VirtualizedList};
+use crate::widgets::{
+    scrollbar,
+    virtualized_list::{Pos, ScrollBar, ScrollBarState, VirtualizedList},
+};
 use iced::{Alignment, Element, Length, Pixels, advanced::Renderer, widget::Id};
-use std::hash::Hash;
+use std::{hash::Hash, marker::PhantomData};
 
 impl Pos {
     pub fn new(current_element: usize, offset: f32) -> Self {
@@ -21,19 +24,26 @@ impl Pos {
 pub fn virtualized_list<'elem, D, M, T, R, I>(
     db: I,
     get_elem: fn(D) -> Element<'elem, M, T, R>,
-) -> VirtualizedList<'elem, D, M, T, R, I>
+) -> VirtualizedList<'elem, D, M, T, R, I, scrollbar::ScrollBar<'elem, M, T>, scrollbar::state::State>
 where
     D: Hash + 'elem,
-    R: Renderer,
+    M: 'elem + 'elem,
+    R: Renderer + 'elem,
     I: IntoIterator<
             IntoIter: Iterator<Item = D> + DoubleEndedIterator + ExactSizeIterator,
             Item = D,
-        > + Clone,
+        > + Clone
+        + 'elem,
+    T: scrollbar::style::Catalog + 'elem,
 {
     VirtualizedList::new(db, get_elem)
 }
 
-impl<'elem, D, M, T, R, I> VirtualizedList<'elem, D, M, T, R, I>
+pub fn new_with_scrollbar<'elem, D, M, T, R, I, S, SBS>(
+    db: I,
+    get_elem: fn(D) -> Element<'elem, M, T, R>,
+    scrollbar: S,
+) -> VirtualizedList<'elem, D, M, T, R, I, S, SBS>
 where
     D: Hash + 'elem,
     R: Renderer,
@@ -41,6 +51,23 @@ where
             IntoIter: Iterator<Item = D> + DoubleEndedIterator + ExactSizeIterator,
             Item = D,
         > + Clone,
+    S: ScrollBar<'elem, M, T, R>,
+    SBS: ScrollBarState,
+{
+    VirtualizedList::new_with_scrollbar(db, get_elem, scrollbar)
+}
+
+impl<'elem, D, M, T, R, I> VirtualizedList<'elem, D, M, T, R, I, scrollbar::ScrollBar<'elem, M, T>, scrollbar::state::State>
+where
+    D: Hash + 'elem,
+    M: 'elem + 'elem,
+    R: Renderer + 'elem,
+    I: IntoIterator<
+            IntoIter: Iterator<Item = D> + DoubleEndedIterator + ExactSizeIterator,
+            Item = D,
+        > + Clone
+        + 'elem,
+    T: scrollbar::style::Catalog + 'elem,
 {
     pub fn new(db: I, get_elem: fn(D) -> Element<'elem, M, T, R>) -> Self {
         Self {
@@ -48,6 +75,8 @@ where
             db,
             get_elem,
             on_scroll: None,
+            scrollbar: scrollbar::api::scrollbar(),
+            gap: None,
             is_vertical: true,
             spacing: 0.,
             width: Length::Shrink,
@@ -55,6 +84,42 @@ where
             align: Alignment::Start,
             speed_scroll: 60.,
             cash_elem: Default::default(),
+            _phantom: PhantomData,
+        }
+    }
+}
+
+impl<'elem, D, M, T, R, I, S, SBS> VirtualizedList<'elem, D, M, T, R, I, S, SBS>
+where
+    D: Hash + 'elem,
+    R: Renderer,
+    I: IntoIterator<
+            IntoIter: Iterator<Item = D> + DoubleEndedIterator + ExactSizeIterator,
+            Item = D,
+        > + Clone,
+    S: ScrollBar<'elem, M, T, R>,
+    SBS: ScrollBarState,
+{
+    pub fn new_with_scrollbar(
+        db: I,
+        get_elem: fn(D) -> Element<'elem, M, T, R>,
+        scrollbar: S,
+    ) -> Self {
+        Self {
+            id: None,
+            db,
+            get_elem,
+            on_scroll: None,
+            scrollbar,
+            gap: None,
+            is_vertical: true,
+            spacing: 0.,
+            width: Length::Shrink,
+            height: Length::Fill,
+            align: Alignment::Start,
+            speed_scroll: 60.,
+            cash_elem: Default::default(),
+            _phantom: PhantomData,
         }
     }
 
