@@ -30,7 +30,7 @@ struct CashDataElement {
     node: Node,
 }
 
-struct State {
+pub struct State {
     cash_elements: IndexMap<usize, CashDataElement>,
     cash_limits: Limits,
     pos: Pos,
