@@ -9,9 +9,9 @@ use iced::{
     mouse::{Cursor, ScrollDelta},
 };
 use indexmap::IndexMap;
+use std::debug_assert_matches;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use tracing::debug;
-use std::debug_assert_matches;
 
 impl<'elem, D, M, T, R, I> VirtualizedList<'elem, D, M, T, R, I>
 where
@@ -324,8 +324,12 @@ where
                                     if state.pos.offset <= size {
                                         None
                                     } else {
-                                        state.pos.offset -= size;
                                         state.pos.current_element += 1;
+                                        if state.pos.current_element == db_end {
+                                            state.pos.offset = 0.;
+                                        } else {
+                                            state.pos.offset -= size;
+                                        }
                                         self.scroll_publish(Some(size), renderer, shell, state);
                                         Some(())
                                     }
