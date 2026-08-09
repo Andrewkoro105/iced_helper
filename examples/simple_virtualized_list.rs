@@ -2,7 +2,7 @@ use iced::{
     Element, Theme,
     widget::{container, text},
 };
-use iced_helper::widgets::virtualized_list::VirtualizedList;
+use iced_helper::widgets::virtualized_list::api::virtualized_list;
 use std::time::Instant;
 use tracing::{Level, info};
 use tracing_subscriber::{filter::Targets, fmt, layer::SubscriberExt, util::SubscriberInitExt};
@@ -14,7 +14,7 @@ struct TestState {
 impl TestState {
     fn view(state: &TestState) -> Element<'_, (), iced::Theme, iced::Renderer> {
         container(
-            container(VirtualizedList::new(&state.data, |data| {
+            container(virtualized_list(&state.data, |data| {
                 container(text!("elem: ({data})"))
                     .padding(5)
                     .style(|theme| container::success(theme))

@@ -2,8 +2,8 @@ use iced::{
     Element, Theme,
     widget::{container, text},
 };
-use iced_helper::widgets::virtualized_list::VirtualizedList;
-use tracing::{Level};
+use iced_helper::widgets::virtualized_list::api::virtualized_list;
+use tracing::Level;
 use tracing_subscriber::{filter::Targets, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
 struct TestState;
@@ -11,12 +11,15 @@ struct TestState;
 impl TestState {
     fn view(_: &TestState) -> Element<'_, (), iced::Theme, iced::Renderer> {
         container(
-            container(VirtualizedList::new(0..(u32::MAX), |data| {
-                container(text!("elem: ({data})"))
-                    .padding(5)
-                    .style(|theme| container::success(theme))
-                    .into()
-            }).spacing(15))
+            container(
+                virtualized_list(0..(u32::MAX), |data| {
+                    container(text!("elem: ({data})"))
+                        .padding(5)
+                        .style(|theme| container::success(theme))
+                        .into()
+                })
+                .spacing(15),
+            )
             .style(|theme| container::warning(theme)),
         )
         .padding(100)

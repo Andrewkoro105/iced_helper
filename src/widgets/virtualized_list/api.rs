@@ -18,6 +18,21 @@ impl Pos {
     }
 }
 
+pub fn virtualized_list<'elem, D, M, T, R, I>(
+    db: I,
+    get_elem: fn(D) -> Element<'elem, M, T, R>,
+) -> VirtualizedList<'elem, D, M, T, R, I>
+where
+    D: Hash + 'elem,
+    R: Renderer,
+    I: IntoIterator<
+            IntoIter: Iterator<Item = D> + DoubleEndedIterator + ExactSizeIterator,
+            Item = D,
+        > + Clone,
+{
+    VirtualizedList::new(db, get_elem)
+}
+
 impl<'elem, D, M, T, R, I> VirtualizedList<'elem, D, M, T, R, I>
 where
     D: Hash + 'elem,

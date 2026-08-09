@@ -3,7 +3,7 @@ use iced::{
     widget::{Id, button, container, row, text},
 };
 use iced_helper::widgets::virtualized_list::{
-    Pos, VirtualizedList, operations::scroll_to::scroll_to,
+    Pos, api::virtualized_list, operations::scroll_to::scroll_to,
 };
 use std::time::{Duration, Instant};
 use tracing::{Level, info};
@@ -17,7 +17,7 @@ impl TestState {
     fn view(state: &TestState) -> Element<'_, TestMessage, iced::Theme, iced::Renderer> {
         container(
             container(
-                VirtualizedList::new(state.data.iter().enumerate(), |(i, data)| {
+                virtualized_list(state.data.iter().enumerate(), |(i, data)| {
                     let data_str = if (i / 100) % 2 == 0 {
                         format!("{}\n", data.0).repeat(data.1)
                     } else {
@@ -102,7 +102,10 @@ fn main() {
         Subscription::batch(vec![
             time::repeat(|| async { TestMessage::Add(2) }, Duration::from_secs(2)),
             time::repeat(|| async { TestMessage::Nl(1) }, Duration::from_secs(5)),
-            time::repeat(|| async { TestMessage::SetScroll(Pos::new(4, 0.5)) }, Duration::from_secs(10)),
+            time::repeat(
+                || async { TestMessage::SetScroll(Pos::new(4, 0.5)) },
+                Duration::from_secs(10),
+            ),
         ])
     })
     .run()

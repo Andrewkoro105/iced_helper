@@ -1,5 +1,5 @@
 use iced::{Alignment, Element, Length, Theme, widget::container};
-use iced_helper::widgets::scrollbar::{ScrollBar, api::scrollbar};
+use iced_helper::widgets::scrollbar::api::scrollbar;
 use tracing::{Level, info};
 use tracing_subscriber::{filter::Targets, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
