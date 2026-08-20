@@ -162,4 +162,9 @@ where
         self.id = Some(id);
         self
     }
+
+    pub fn gap(mut self, gap: f32) -> Self {
+        self.gap = Some(gap);
+        self
+    }
 }
