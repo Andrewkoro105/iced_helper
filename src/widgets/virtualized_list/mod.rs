@@ -112,8 +112,20 @@ where
     S: Widget<M, T, R>,
     SBS: ScrollBarState + 'static,
 {
+    fn tag(&self) -> tree::Tag {
+        struct A;
+        tree::Tag::of::<A>()
+    }
+    
     fn diff(&self, tree: &mut Tree) {
-        self.scrollbar.diff(&mut tree.children[0]);
+        if tree.tag == self.tag() {
+            if tree.children.is_empty() {
+                tree.children = self.children();
+            }
+            self.scrollbar.diff(&mut tree.children[0]);
+        } else {
+            *tree = Tree::new(self as &dyn Widget<M, T, R>)
+        }
     }
 
     fn state(&self) -> tree::State {
