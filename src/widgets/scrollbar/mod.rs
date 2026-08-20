@@ -72,10 +72,12 @@ impl<'elem, M, T: style::Catalog, R: Renderer> Widget<M, T, R> for ScrollBar<'el
         let base_bounds = layout.bounds();
         let scroller_bounds = state.get_scroller_bounds(self.is_vertical, &base_bounds);
         let style = theme.style(
-            if state.is_focused || state.offset.is_some() {
-                Status::Focused
+            if state.offset.is_some() {
+                Status::Dragged
+            } else if state.is_focused {
+                Status::Hovered
             } else {
-                Status::UnFocused
+                Status::Active
             },
             &self.style,
         );

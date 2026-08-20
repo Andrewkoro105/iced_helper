@@ -1,8 +1,9 @@
 use iced::{Background, Border, Shadow, Theme, advanced::renderer::Quad};
 
 pub enum Status {
-    Focused,
-    UnFocused,
+    Active,
+    Hovered,
+    Dragged,
 }
 
 pub trait Catalog: Sized {
@@ -20,7 +21,19 @@ impl Catalog for Theme {
 
     fn default<'a>() -> Self::Class<'a> {
         Box::new(|theme, status| match status {
-            Status::Focused => Style {
+            Status::Active => Style {
+                background: Background::Color(theme.extended_palette().background.weak.color),
+                border: Default::default(),
+                shadow: Default::default(),
+                snap: Quad::default().snap,
+                scroller_background: Background::Color(
+                    theme.extended_palette().background.strong.color,
+                ),
+                scroller_border: Default::default(),
+                scroller_shadow: Default::default(),
+                scroller_snap: Quad::default().snap,
+            },
+            Status::Hovered => Style {
                 background: Background::Color(theme.extended_palette().background.weak.color),
                 border: Default::default(),
                 shadow: Default::default(),
@@ -32,13 +45,13 @@ impl Catalog for Theme {
                 scroller_shadow: Default::default(),
                 scroller_snap: Quad::default().snap,
             },
-            Status::UnFocused => Style {
+            Status::Dragged => Style {
                 background: Background::Color(theme.extended_palette().background.weak.color),
                 border: Default::default(),
                 shadow: Default::default(),
                 snap: Quad::default().snap,
                 scroller_background: Background::Color(
-                    theme.extended_palette().background.strong.color,
+                    theme.extended_palette().primary.strong.color,
                 ),
                 scroller_border: Default::default(),
                 scroller_shadow: Default::default(),

@@ -13,7 +13,6 @@ use iced::{
 use indexmap::IndexMap;
 use std::debug_assert_matches;
 use std::hash::{DefaultHasher, Hash, Hasher};
-use tracing::debug;
 
 impl<'elem, D, M, T, R, I, S, SBS> VirtualizedList<'elem, D, M, T, R, I, S, SBS>
 where
