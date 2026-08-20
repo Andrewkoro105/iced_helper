@@ -87,6 +87,10 @@ impl ScrollBarState for State {
         self.pos
     }
 
+    fn get_view(&self) -> Option<f32> {
+        self.view
+    }
+
     fn get_base_view(&self) -> f32 {
         self.base_view
     }

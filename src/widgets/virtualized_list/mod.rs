@@ -19,6 +19,7 @@ use std::{hash::Hash, marker::PhantomData};
 
 pub trait ScrollBarState {
     fn get_pos(&self) -> f32;
+    fn get_view(&self) -> Option<f32>;
     fn get_base_view(&self) -> f32;
     fn set_pos_and_view(&mut self, pos: f32, view: Option<f32>);
 }
@@ -117,7 +118,7 @@ where
         struct A;
         tree::Tag::of::<A>()
     }
-    
+
     fn diff(&self, tree: &mut Tree) {
         if tree.tag == self.tag() {
             if tree.children.is_empty() {
@@ -147,9 +148,13 @@ where
     fn layout(&mut self, tree: &mut Tree, renderer: &R, limits: &Limits) -> Node {
         let scrollbar_node = self.layout_scrollbar(&mut tree.children[0], renderer, limits);
         let scrollbar_state = tree.children[0].state.downcast_mut::<SBS>();
+        let is_view_gap = scrollbar_state
+            .get_view()
+            .map(|view| view < 1.)
+            .unwrap_or(true);
         let mut limits = limits.clone();
 
-        if let Some(gap) = self.gap {
+        if is_view_gap && let Some(gap) = self.gap {
             limits = if self.is_vertical {
                 limits.shrink(Size::new(gap + scrollbar_node.bounds().width, 0.))
             } else {
@@ -193,16 +198,23 @@ where
         cursor: Cursor,
         viewport: &Rectangle,
     ) {
+        let scrollbar_state = tree.children[0].state.downcast_ref::<SBS>();
+        let is_view_gap = scrollbar_state
+            .get_view()
+            .map(|view| view < 1.)
+            .unwrap_or(true);
+        if is_view_gap {
+            self.scrollbar.draw(
+                &tree.children[0],
+                renderer,
+                theme,
+                style,
+                layout.child(0),
+                cursor,
+                viewport,
+            );
+        }
         let state = tree.state.downcast_ref::<State>();
-        self.scrollbar.draw(
-            &tree.children[0],
-            renderer,
-            theme,
-            style,
-            layout.child(0),
-            cursor,
-            viewport,
-        );
 
         renderer.with_layer(layout.bounds(), |renderer| {
             state
