@@ -1,11 +1,11 @@
 [package]
 name = "iced_helper"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Andrewkoro105"]
 license = "MIT"
 repository = "https://github.com/Andrewkoro105/iced_helper"
 description = "A small set of auxiliary functions for working with iced"
-keywords = ["iced"]
+keywords = ["iced", "select_file", "virtualized_list", "scrollbar", "num_input"]
 categories = ["gui"]
 edition = "2024"
 
