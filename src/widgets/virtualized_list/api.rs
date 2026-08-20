@@ -1,8 +1,8 @@
 use crate::widgets::{
     scrollbar,
-    virtualized_list::{Pos, ScrollBar, ScrollBarState, VirtualizedList},
+    virtualized_list::{Pos, ScrollBarState, VirtualizedList},
 };
-use iced::{Alignment, Element, Length, Pixels, advanced::Renderer, widget::Id};
+use iced::{Alignment, Element, Length, Pixels, advanced::{Renderer, Widget}, widget::Id};
 use std::{hash::Hash, marker::PhantomData};
 
 impl Pos {
@@ -51,7 +51,7 @@ where
             IntoIter: Iterator<Item = D> + DoubleEndedIterator + ExactSizeIterator,
             Item = D,
         > + Clone,
-    S: ScrollBar<'elem, M, T, R>,
+    S: Widget<M, T, R>,
     SBS: ScrollBarState,
 {
     VirtualizedList::new_with_scrollbar(db, get_elem, scrollbar)
@@ -97,7 +97,7 @@ where
             IntoIter: Iterator<Item = D> + DoubleEndedIterator + ExactSizeIterator,
             Item = D,
         > + Clone,
-    S: ScrollBar<'elem, M, T, R>,
+    S: Widget<M, T, R>,
     SBS: ScrollBarState,
 {
     pub fn new_with_scrollbar(

@@ -12,44 +12,47 @@ pub struct State {
 
 impl State {
     pub fn get_view(&self) -> f32 {
-        self.view.unwrap_or(0.02)
+        self.view.unwrap_or(0.2)
+    }
+
+    fn get_view_bound(&self, is_vertical: bool, mut base_bounds: Rectangle) -> Rectangle {
+        if is_vertical {
+            let view = self.get_view() * base_bounds.height;
+            base_bounds.y += view / 2.;
+            base_bounds.height -= view;
+        } else {
+            let view = self.get_view() * base_bounds.width;
+            base_bounds.x += view / 2.;
+            base_bounds.width -= view;
+        }
+        base_bounds
     }
 
     pub fn get_scroller_bounds(&self, is_vertical: bool, base_bounds: &Rectangle) -> Rectangle {
+        let real_bounds = self.get_view_bound(is_vertical, *base_bounds);
         if is_vertical {
-            let real_pos = base_bounds.y + (base_bounds.height * self.pos);
+            let real_pos = real_bounds.y + (real_bounds.height * self.pos);
             let scroller_size = base_bounds.height * self.get_view();
             Rectangle {
-                x: base_bounds.x,
-                y: if (base_bounds.y + base_bounds.height) - real_pos < scroller_size / 2. {
-                    (base_bounds.y + base_bounds.height) - scroller_size
-                } else if base_bounds.height * self.pos < scroller_size / 2. {
-                    base_bounds.y
-                } else {
-                    real_pos - scroller_size / 2.
-                },
-                width: base_bounds.width,
+                x: real_bounds.x,
+                y: real_pos - scroller_size / 2.,
+                width: real_bounds.width,
                 height: scroller_size,
             }
         } else {
-            let real_pos = base_bounds.x + (base_bounds.width * self.pos);
+            let real_pos = real_bounds.x + (real_bounds.width * self.pos);
             let scroller_size = base_bounds.width * self.get_view();
             Rectangle {
-                x: if (base_bounds.x + base_bounds.width) - real_pos < scroller_size / 2. {
-                    (base_bounds.x + base_bounds.width) - scroller_size
-                } else if base_bounds.width * self.pos < scroller_size / 2. {
-                    base_bounds.x
-                } else {
-                    real_pos - scroller_size / 2.
-                },
-                y: base_bounds.y,
+                x: real_pos - scroller_size / 2.,
+                y: real_bounds.y,
                 width: scroller_size,
-                height: base_bounds.height,
+                height: real_bounds.height,
             }
         }
     }
 
     pub fn set_offset(&mut self, is_vertical: bool, base_bounds: &Rectangle, cursor: Point) {
+        let base_bounds = self.get_view_bound(is_vertical, *base_bounds);
         self.offset = Some(if is_vertical {
             cursor.y - (base_bounds.y + (base_bounds.height * self.pos))
         } else {
@@ -58,18 +61,23 @@ impl State {
     }
 
     pub fn set_pos(&mut self, is_vertical: bool, base_bounds: &Rectangle, cursor: Point) {
+        let base_bounds = self.get_view_bound(is_vertical, *base_bounds);
         self.pos = if is_vertical {
             (cursor.y - base_bounds.y - self.offset.unwrap_or(0.)) / base_bounds.height
         } else {
             (cursor.x - base_bounds.x - self.offset.unwrap_or(0.)) / base_bounds.width
         }
-        .clamp(0., 1.)
+        .clamp(0., 1.);
     }
 }
 
 impl ScrollBarState for State {
-    fn set_pos_and_view(&mut self, pos: f32, view: f32) {
+    fn get_pos(&self) -> f32 {
+        self.pos
+    }
+
+    fn set_pos_and_view(&mut self, pos: f32, view: Option<f32>) {
         self.pos = pos;
-        self.view = Some(view);
+        self.view = view;
     }
 }

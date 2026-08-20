@@ -16,17 +16,13 @@ use iced::{
 };
 use indexmap::IndexMap;
 use std::{hash::Hash, marker::PhantomData};
-use tracing::debug;
-
-pub trait ScrollBar<'elem, M, T, R: Renderer>: Widget<M, T, R> {
-    fn mut_on_scroll(self, mut_on_scroll: impl FnMut(f32) + 'elem) -> Self;
-}
 
 pub trait ScrollBarState {
-    fn set_pos_and_view(&mut self, pos: f32, view: f32);
+    fn get_pos(&self) -> f32;
+    fn set_pos_and_view(&mut self, pos: f32, view: Option<f32>);
 }
 
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub struct Pos {
     pub current_element: usize,
     pub offset: f32,
@@ -54,7 +50,7 @@ where
             IntoIter: Iterator<Item = D> + DoubleEndedIterator + ExactSizeIterator,
             Item = D,
         > + Clone,
-    SB: ScrollBar<'elem, M, T, R>,
+    SB: Widget<M, T, R>,
     SBS: ScrollBarState,
 {
     id: Option<Id>,
@@ -97,7 +93,7 @@ where
             Item = D,
         > + Clone
         + 'elem,
-    S: ScrollBar<'elem, M, T, R> + 'elem,
+    S: Widget<M, T, R> + 'elem,
     SBS: ScrollBarState + 'static,
 {
     fn from(value: VirtualizedList<'elem, D, M, T, R, I, S, SBS>) -> Self {
@@ -113,7 +109,7 @@ where
             IntoIter: Iterator<Item = D> + DoubleEndedIterator + ExactSizeIterator,
             Item = D,
         > + Clone,
-    S: ScrollBar<'elem, M, T, R>,
+    S: Widget<M, T, R>,
     SBS: ScrollBarState + 'static,
 {
     fn diff(&self, tree: &mut Tree) {
@@ -136,13 +132,9 @@ where
     }
 
     fn layout(&mut self, tree: &mut Tree, renderer: &R, limits: &Limits) -> Node {
-        if tree.children.is_empty() {
-            panic!("EEEEMPY")
-        }
         let scrollbar_node = self.layout_scrollbar(&mut tree.children[0], renderer, limits);
-        debug!("layput: scrollbar_node: {scrollbar_node:?}");
+        let scrollbar_state = tree.children[0].state.downcast_mut::<SBS>();
         let mut limits = limits.clone();
-        debug!("layput: limits: {limits:?} -> ");
 
         if let Some(gap) = self.gap {
             limits = if self.is_vertical {
@@ -151,7 +143,6 @@ where
                 limits.shrink(Size::new(0., gap + scrollbar_node.bounds().height))
             };
         }
-        debug!("layput: limits: {limits:?}");
 
         let state = tree.state.downcast_mut::<State>();
         if let Some(mut scroll) = state.user_pos {
@@ -174,7 +165,7 @@ where
         }
 
         Node::with_children(
-            self.layout_core(state, renderer, &limits),
+            self.layout_core(state, scrollbar_state, renderer, &limits),
             vec![scrollbar_node],
         )
     }
@@ -190,20 +181,15 @@ where
         viewport: &Rectangle,
     ) {
         let state = tree.state.downcast_ref::<State>();
-        debug!("view_count: {}", state.cash_elements.iter().len());
-        self.scrollbar.draw(&tree.children[0], renderer, theme, style, layout.child(0), cursor, viewport);
-
-        state
-            .cash_elements
-            .iter()
-            .map(|(_, elem)| {
-                Layout::with_offset(
-                    Vector::new(layout.position().x, layout.position().y),
-                    &elem.node,
-                )
-            })
-            .zip(&state.cash_elements)
-            .for_each(|(layout, (i, _))| debug!("draw: i: {i}, bounds: {:?}", layout.bounds()));
+        self.scrollbar.draw(
+            &tree.children[0],
+            renderer,
+            theme,
+            style,
+            layout.child(0),
+            cursor,
+            viewport,
+        );
 
         renderer.with_layer(layout.bounds(), |renderer| {
             state
@@ -251,6 +237,39 @@ where
             shell,
             viewport,
         );
+
+        self.scrollbar.update(
+            &mut tree.children[0],
+            event,
+            layout.child(0),
+            cursor,
+            renderer,
+            clipboard,
+            shell,
+            viewport,
+        );
+        let scrollbar_state = tree.children[0].state.downcast_mut::<SBS>();
+        let current_element =
+            scrollbar_state.get_pos() * ((self.db.clone().into_iter().len() - 1) as f32);
+        let old_pos = state.pos;
+        state.pos.current_element = current_element.trunc() as _;
+        state.pos.offset = current_element.fract()
+            * self.get_size_element(
+                state.pos.current_element,
+                self.db
+                    .clone()
+                    .into_iter()
+                    .skip(state.pos.current_element)
+                    .next()
+                    .unwrap(),
+                renderer,
+                &state.cash_limits,
+            );
+        if old_pos != state.pos {
+            self.layout_core(state, scrollbar_state, renderer, &state.cash_limits.clone());
+            shell.request_redraw();
+        }
+
         if updated {
             shell.capture_event();
         } else {

@@ -1,5 +1,5 @@
 use crate::widgets::virtualized_list::{
-    CashDataElement, ScrollBar, ScrollBarState, State, VirtualizedList,
+    CashDataElement, Pos, ScrollBarState, State, VirtualizedList,
 };
 use iced::{
     Alignment, Element, Event, Length, Rectangle, Size, Vector,
@@ -23,19 +23,60 @@ where
             IntoIter: Iterator<Item = D> + DoubleEndedIterator + ExactSizeIterator,
             Item = D,
         > + Clone,
-    S: ScrollBar<'elem, M, T, R>,
+    S: Widget<M, T, R>,
     SBS: ScrollBarState,
 {
+    fn set_scrollbar_pos(&self, pos: Pos, renderer: &R, state: &State, scrollbar_state: &mut SBS) {
+        let one_len = 1. / (self.db.clone().into_iter().len() - 1) as f32;
+        let view_len = self.cash_elem.len();
+        let end_elem_size = self.get_size_element(
+            pos.current_element + view_len - 1,
+            self.db
+                .clone()
+                .into_iter()
+                .skip(pos.current_element)
+                .next()
+                .unwrap(),
+            renderer,
+            &state.cash_limits,
+        );
+        let end_offset = state.end_offset / end_elem_size;
+        let start_offset = 1. - pos.offset;
+
+        debug!(
+            "end_offset: {:>6.2} / {:>6.2} = {}",
+            state.end_offset, end_elem_size, end_offset
+        );
+
+        debug!(
+            "size: ({:>3} - 2) + {:>6.2} + {:>6.2} = {}",
+            view_len,
+            start_offset,
+            end_offset,
+            (view_len as f32 - 2.) + start_offset + end_offset
+        );
+        let view =
+            ((view_len as f32 - 2.) + start_offset + end_offset) * one_len;
+        debug!(
+            "view: (({} as f32 - 2.) + {:>6.2} + {:>6.2}) * {:>6.2}) = {:?}",
+            view_len, start_offset, end_offset, one_len, view
+        );
+        scrollbar_state.set_pos_and_view(
+            (pos.current_element as f32 * one_len) + (pos.offset * one_len),
+            Some(view),
+        );
+    }
+
     fn scroll_publish(
         &self,
-        size: Option<f32>,
+        start_size: Option<f32>,
         renderer: &R,
-        shell: &mut Shell<M>,
+        shell: Option<&mut Shell<M>>,
         state: &State,
         scrollbar_state: &mut SBS,
     ) {
         let mut pos = state.pos;
-        pos.offset /= size.unwrap_or_else(|| {
+        pos.offset /= start_size.unwrap_or_else(|| {
             self.get_size_element(
                 pos.current_element,
                 self.db
@@ -48,32 +89,12 @@ where
                 &state.cash_limits,
             )
         });
-        let one_len = 1. / self.db.clone().into_iter().len() as f32;
-        let view_len = self.cash_elem.len();
-        let end_offset = state.end_offset
-            / size.unwrap_or_else(|| {
-                self.get_size_element(
-                    pos.current_element,
-                    self.db
-                        .clone()
-                        .into_iter()
-                        .skip(pos.current_element)
-                        .next()
-                        .unwrap(),
-                    renderer,
-                    &state.cash_limits,
-                )
-            });
-        scrollbar_state.set_pos_and_view(
-            (pos.current_element as f32 * one_len) + (pos.offset * one_len),
-            if view_len > 2 {
-                ((view_len - 2) as f32 + pos.offset + end_offset) * one_len
-            } else {
-                0.02
-            },
-        );
-        if let Some(on_scroll) = self.on_scroll.as_ref() {
-            shell.publish((on_scroll)(pos))
+
+        self.set_scrollbar_pos(pos, renderer, state, scrollbar_state);
+        if let Some(shell) = shell {
+            if let Some(on_scroll) = self.on_scroll.as_ref() {
+                shell.publish((on_scroll)(pos))
+            }
         }
     }
 
@@ -256,10 +277,20 @@ where
         node
     }
 
-    pub(super) fn layout_core(&mut self, state: &mut State, renderer: &R, limits: &Limits) -> Size {
-        debug!("layout: limits: {:?}", limits);
-
+    pub(super) fn layout_core(
+        &mut self,
+        state: &mut State,
+        scrollbar_state: &mut SBS,
+        renderer: &R,
+        limits: &Limits,
+    ) -> Size {
         state.cash_limits = *limits;
+        let max_size = if self.is_vertical {
+            limits.max().height
+        } else {
+            limits.max().width
+        };
+        let mut old_children_size = 0.;
         (state.cash_elements, self.cash_elem) = self
             .db
             .clone()
@@ -267,27 +298,18 @@ where
             .enumerate()
             .skip(state.pos.current_element)
             .scan(-state.pos.offset, |children_size, (i, data)| {
-                debug!("children_size ({i}): {:.2?}", children_size);
-                if self.is_vertical {
-                    *children_size <= limits.max().height
-                } else {
-                    *children_size <= limits.max().width
-                }
-                .then(|| {
-                    let old_children_size = *children_size;
+                (*children_size <= max_size).then(|| {
+                    old_children_size = *children_size;
                     let (i, cash_data_elem, cash_elem) =
                         self.get_element_and_node(state, i, data, children_size, renderer, limits);
-                    state.end_offset = *children_size - old_children_size;
+
                     ((i, cash_data_elem), (i, cash_elem))
                 })
             })
             .unzip::<_, _, IndexMap<_, _>, IndexMap<_, _>>();
 
-        debug!("result layout: count: {}", state.cash_elements.len());
-
-        state.cash_elements.iter().for_each(|(i, elem)| {
-            debug!("result layout: i: {i}, bounds: {:?}", elem.node.bounds())
-        });
+        state.end_offset = max_size - old_children_size;
+        self.scroll_publish(None, renderer, None, state, scrollbar_state);
 
         Size {
             width: limits.max().width,
@@ -312,20 +334,22 @@ where
             Event::Mouse(iced::mouse::Event::WheelScrolled {
                 delta: ScrollDelta::Lines { x, y },
             }) => {
-                debug!("[=============================[update]===============================]");
-                debug!("start pos: {:?}", state.pos);
                 let db_end = self.db.clone().into_iter().len() - 1;
                 let x = x * self.speed_scroll;
                 let y = y * self.speed_scroll;
                 let scroll = -if self.is_vertical { y } else { x };
-                debug!("ScrollDelta::Pixels: {scroll}");
                 state.pos.offset += scroll;
-                debug!("pre pos: {:?}", state.pos);
                 if state.pos.offset < 0. {
                     if !(state.pos.current_element == 0 && state.pos.offset - scroll == 0.) {
                         if state.pos.current_element == 0 {
                             state.pos.offset = 0.;
-                            self.scroll_publish(None, renderer, shell, state, scrollbar_state);
+                            self.scroll_publish(
+                                None,
+                                renderer,
+                                Some(shell),
+                                state,
+                                scrollbar_state,
+                            );
                         } else {
                             self.db
                                 .clone()
@@ -346,7 +370,7 @@ where
                                     self.scroll_publish(
                                         Some(size),
                                         renderer,
-                                        shell,
+                                        Some(shell),
                                         state,
                                         scrollbar_state,
                                     );
@@ -363,7 +387,13 @@ where
                         if state.pos.current_element >= db_end {
                             state.pos.current_element = db_end;
                             state.pos.offset = 0.;
-                            self.scroll_publish(None, renderer, shell, state, scrollbar_state);
+                            self.scroll_publish(
+                                None,
+                                renderer,
+                                Some(shell),
+                                state,
+                                scrollbar_state,
+                            );
                         } else {
                             self.db
                                 .clone()
@@ -390,7 +420,7 @@ where
                                         self.scroll_publish(
                                             Some(size),
                                             renderer,
-                                            shell,
+                                            Some(shell),
                                             state,
                                             scrollbar_state,
                                         );
@@ -403,15 +433,13 @@ where
                         state.pos.offset -= scroll;
                     }
                 }
-                debug!("end pos: {:?}", state.pos);
             }
             _ => {}
         }
 
         if result {
-            self.layout_core(state, renderer, &state.cash_limits.clone());
+            self.layout_core(state, scrollbar_state, renderer, &state.cash_limits.clone());
             shell.request_redraw();
-            debug!("update result: {result}");
         }
 
         result
