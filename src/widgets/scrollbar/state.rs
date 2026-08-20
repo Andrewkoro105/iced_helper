@@ -2,17 +2,28 @@ use iced::{Point, Rectangle};
 
 use crate::widgets::virtualized_list::ScrollBarState;
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct State {
     pub pos: f32,
     pub view: Option<f32>,
     pub offset: Option<f32>,
     pub is_focused: bool,
+    pub base_view: f32,
 }
 
 impl State {
+    pub fn new(base_view: f32) -> Self {
+        Self {
+            pos: 0.,
+            view: None,
+            offset: None,
+            is_focused: false,
+            base_view,
+        }
+    }
+
     pub fn get_view(&self) -> f32 {
-        self.view.unwrap_or(0.2)
+        self.view.unwrap_or(self.base_view)
     }
 
     fn get_view_bound(&self, is_vertical: bool, mut base_bounds: Rectangle) -> Rectangle {
@@ -74,6 +85,10 @@ impl State {
 impl ScrollBarState for State {
     fn get_pos(&self) -> f32 {
         self.pos
+    }
+
+    fn get_base_view(&self) -> f32 {
+        self.base_view
     }
 
     fn set_pos_and_view(&mut self, pos: f32, view: Option<f32>) {

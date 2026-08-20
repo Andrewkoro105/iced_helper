@@ -19,6 +19,7 @@ use std::{hash::Hash, marker::PhantomData};
 
 pub trait ScrollBarState {
     fn get_pos(&self) -> f32;
+    fn get_base_view(&self) -> f32;
     fn set_pos_and_view(&mut self, pos: f32, view: Option<f32>);
 }
 

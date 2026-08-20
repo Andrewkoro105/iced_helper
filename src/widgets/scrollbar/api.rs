@@ -12,6 +12,7 @@ impl<'elem, M: 'elem, T: style::Catalog + 'elem> ScrollBar<'elem, M, T> {
             style: T::default(),
             is_vertical: true,
             width: 10.,
+            base_view: 0.04,
         }
     }
 
@@ -22,6 +23,11 @@ impl<'elem, M: 'elem, T: style::Catalog + 'elem> ScrollBar<'elem, M, T> {
 
     pub fn horizontal(mut self) -> Self {
         self.is_vertical = false;
+        self
+    }
+
+    pub fn base_view(mut self, base_view: f32) -> Self {
+        self.base_view = base_view;
         self
     }
 

@@ -20,6 +20,7 @@ pub struct ScrollBar<'elem, M, T: style::Catalog> {
     style: T::Class<'elem>,
     is_vertical: bool,
     width: f32,
+    base_view: f32,
 }
 
 impl<'elem, M: 'elem, T: style::Catalog + 'elem, R: Renderer> From<ScrollBar<'elem, M, T>>
@@ -32,7 +33,7 @@ impl<'elem, M: 'elem, T: style::Catalog + 'elem, R: Renderer> From<ScrollBar<'el
 
 impl<'elem, M, T: style::Catalog, R: Renderer> Widget<M, T, R> for ScrollBar<'elem, M, T> {
     fn state(&self) -> tree::State {
-        tree::State::Some(Box::new(State::default()))
+        tree::State::Some(Box::new(State::new(self.base_view)))
     }
 
     fn size(&self) -> Size<Length> {

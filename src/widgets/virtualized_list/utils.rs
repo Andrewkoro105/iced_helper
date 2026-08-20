@@ -43,27 +43,10 @@ where
         let end_offset = state.end_offset / end_elem_size;
         let start_offset = 1. - pos.offset;
 
-        debug!(
-            "end_offset: {:>6.2} / {:>6.2} = {}",
-            state.end_offset, end_elem_size, end_offset
-        );
-
-        debug!(
-            "size: ({:>3} - 2) + {:>6.2} + {:>6.2} = {}",
-            view_len,
-            start_offset,
-            end_offset,
-            (view_len as f32 - 2.) + start_offset + end_offset
-        );
-        let view =
-            ((view_len as f32 - 2.) + start_offset + end_offset) * one_len;
-        debug!(
-            "view: (({} as f32 - 2.) + {:>6.2} + {:>6.2}) * {:>6.2}) = {:?}",
-            view_len, start_offset, end_offset, one_len, view
-        );
+        let view = ((view_len as f32 - 2.) + start_offset + end_offset) * one_len;
         scrollbar_state.set_pos_and_view(
             (pos.current_element as f32 * one_len) + (pos.offset * one_len),
-            Some(view),
+            (view > scrollbar_state.get_base_view()).then_some(view),
         );
     }
 

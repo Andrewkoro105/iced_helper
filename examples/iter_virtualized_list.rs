@@ -12,7 +12,7 @@ impl TestState {
     fn view(_: &TestState) -> Element<'_, (), iced::Theme, iced::Renderer> {
         container(
             container(
-                virtualized_list(0..(u32::MAX), |data| {
+                virtualized_list(0..(u32::MAX - 1000), |data| {
                     container(text!("elem: ({data})"))
                         .padding(5)
                         .style(|theme| container::success(theme))

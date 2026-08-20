@@ -1,4 +1,7 @@
-use iced::{Alignment, Element, Length, Theme, widget::{container, row}};
+use iced::{
+    Alignment, Element, Length, Theme,
+    widget::{container, row},
+};
 use iced_helper::widgets::scrollbar::api::scrollbar;
 use tracing::{Level, info};
 use tracing_subscriber::{filter::Targets, fmt, layer::SubscriberExt, util::SubscriberInitExt};
@@ -7,18 +10,21 @@ struct TestState;
 
 impl TestState {
     fn view(_: &TestState) -> Element<'_, f32, iced::Theme, iced::Renderer> {
-        row![container(scrollbar().on_scroll(|a| a))
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .align_x(Alignment::Center)
-            .align_y(Alignment::Center)
-            .padding(100), container(scrollbar().horizontal().on_scroll(|a| a))
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .align_x(Alignment::Center)
-            .align_y(Alignment::Center)
-            .padding(100)]
-            .into()
+        row![
+            container(scrollbar().on_scroll(|a| a))
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .align_x(Alignment::Center)
+                .align_y(Alignment::Center)
+                .padding(100),
+            container(scrollbar().base_view(0.2).horizontal().on_scroll(|a| a))
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .align_x(Alignment::Center)
+                .align_y(Alignment::Center)
+                .padding(100)
+        ]
+        .into()
     }
 }
 
