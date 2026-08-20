@@ -163,8 +163,8 @@ where
         self
     }
 
-    pub fn gap(mut self, gap: f32) -> Self {
-        self.gap = Some(gap);
+    pub fn gap(mut self, gap: impl Into<Pixels>) -> Self {
+        self.gap = Some(gap.into().0);
         self
     }
 }
