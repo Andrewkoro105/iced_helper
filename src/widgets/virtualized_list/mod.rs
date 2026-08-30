@@ -7,7 +7,7 @@ use iced::{
     advanced::{
         Clipboard, Layout, Renderer, Shell, Widget,
         layout::{Limits, Node},
-        mouse,
+        mouse, overlay,
         renderer::Style,
         widget::{Tree, tree},
     },
@@ -382,5 +382,32 @@ where
                     );
                 });
         });
+    }
+
+    fn overlay<'a>(
+        &'a mut self,
+        tree: &'a mut Tree,
+        layout: Layout<'a>,
+        renderer: &R,
+        viewport: &Rectangle,
+        translation: Vector,
+    ) -> Option<overlay::Element<'a, M, T, R>> {
+        tree.state
+            .downcast_mut::<State>()
+            .cash_elements
+            .iter_mut()
+            .zip(self.cash_elem.iter_mut())
+            .find_map(|((_, data), (_, elem))| {
+                elem.as_widget_mut().overlay(
+                    &mut data.tree,
+                    Layout::with_offset(
+                        Vector::new(layout.position().x, layout.position().y),
+                        &data.node,
+                    ),
+                    renderer,
+                    viewport,
+                    translation,
+                )
+            })
     }
 }
