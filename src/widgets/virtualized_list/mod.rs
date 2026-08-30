@@ -24,7 +24,7 @@ pub trait ScrollBarState {
     fn set_pos_and_view(&mut self, pos: f32, view: Option<f32>);
 }
 
-#[derive(Debug, Default, Clone, Copy, PartialEq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, PartialOrd)]
 pub struct Pos {
     pub current_element: usize,
     pub offset: f32,
@@ -41,6 +41,7 @@ pub struct State {
     cash_limits: Limits,
     pos: Pos,
     end_offset: f32,
+    max_end_offset: f32,
     user_pos: Option<Pos>,
 }
 
@@ -79,6 +80,7 @@ impl Default for State {
             end_offset: Default::default(),
             cash_limits: Limits::NONE,
             user_pos: Default::default(),
+            max_end_offset: Default::default(),
         }
     }
 }
@@ -274,8 +276,8 @@ where
             viewport,
         );
         let scrollbar_state = tree.children[0].state.downcast_mut::<SBS>();
-        let current_element =
-            scrollbar_state.get_pos() * ((self.db.clone().into_iter().len() - 1) as f32);
+        let current_element = scrollbar_state.get_pos()
+            * (self.db.clone().into_iter().len() as f32 - 1. + state.max_end_offset);
         let old_pos = state.pos;
         state.pos.current_element = current_element.trunc() as _;
         state.pos.offset = current_element.fract()

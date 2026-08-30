@@ -11,6 +11,7 @@ use iced::{
     mouse::{Cursor, ScrollDelta},
 };
 use indexmap::IndexMap;
+use tracing::debug;
 use std::debug_assert_matches;
 use std::hash::{DefaultHasher, Hash, Hasher};
 
@@ -26,7 +27,7 @@ where
     SBS: ScrollBarState,
 {
     fn set_scrollbar_pos(&self, pos: Pos, renderer: &R, state: &State, scrollbar_state: &mut SBS) {
-        let one_len = 1. / (self.db.clone().into_iter().len() - 1) as f32;
+        let one_len = 1. / (self.db.clone().into_iter().len() as f32 - 1. + state.max_end_offset);
         let view_len = self.cash_elem.len();
         let end_elem_size = self.get_size_element(
             pos.current_element + view_len - 1,
@@ -77,6 +78,34 @@ where
             if let Some(on_scroll) = self.on_scroll.as_ref() {
                 shell.publish((on_scroll)(pos))
             }
+        }
+    }
+
+    fn get_db_end_and_set_max_end_offset(&self, state: &mut State, size: Size, renderer: &R) -> Pos {
+        let view_size = if self.is_vertical {
+            size.height
+        } else {
+            size.width
+        };
+        let end_element: usize = self.db.clone().into_iter().len() - 1;
+        Pos {
+            current_element: end_element,
+            offset: {
+                let elem_size = self.get_size_element(
+                    end_element,
+                    self.db
+                        .clone()
+                        .into_iter()
+                        .skip(end_element)
+                        .next()
+                        .unwrap(),
+                    renderer,
+                    &state.cash_limits,
+                );
+                let result = (elem_size - self.spacing - view_size).max(0.);
+                state.max_end_offset = result / elem_size;
+                result
+            },
         }
     }
 
@@ -267,6 +296,16 @@ where
         limits: &Limits,
     ) -> Size {
         state.cash_limits = *limits;
+        let result = Size {
+            width: limits.max().width,
+            height: limits.max().height,
+        };
+        let db_end = self.get_db_end_and_set_max_end_offset(state, result, renderer);
+
+        if state.pos > db_end {
+            state.pos = db_end;
+        }
+
         let max_size = if self.is_vertical {
             limits.max().height
         } else {
@@ -292,11 +331,7 @@ where
 
         state.end_offset = max_size - old_children_size;
         self.scroll_publish(None, renderer, None, state, scrollbar_state);
-
-        Size {
-            width: limits.max().width,
-            height: limits.max().height,
-        }
+        result
     }
 
     pub(super) fn my_update(
@@ -304,7 +339,7 @@ where
         state: &mut State,
         scrollbar_state: &mut SBS,
         event: &Event,
-        _layout: Layout<'_>,
+        layout: Layout<'_>,
         _cursor: Cursor,
         renderer: &R,
         _clipboard: &mut dyn Clipboard,
@@ -316,7 +351,7 @@ where
             Event::Mouse(iced::mouse::Event::WheelScrolled {
                 delta: ScrollDelta::Lines { x, y },
             }) => {
-                let db_end = self.db.clone().into_iter().len() - 1;
+                let db_end = self.get_db_end_and_set_max_end_offset(state, layout.bounds().size(), renderer);
                 let x = x * self.speed_scroll;
                 let y = y * self.speed_scroll;
                 let scroll = -if self.is_vertical { y } else { x };
@@ -365,10 +400,11 @@ where
                         state.pos.offset -= scroll;
                     }
                 } else {
-                    if !(state.pos.current_element == db_end && state.pos.offset - scroll == 0.) {
-                        if state.pos.current_element >= db_end {
-                            state.pos.current_element = db_end;
-                            state.pos.offset = 0.;
+                    if !(state.pos.current_element == db_end.current_element
+                        && state.pos.offset - scroll == db_end.offset)
+                    {
+                        if state.pos > db_end {
+                            state.pos = db_end;
                             self.scroll_publish(
                                 None,
                                 renderer,
@@ -394,10 +430,9 @@ where
                                         None
                                     } else {
                                         state.pos.current_element += 1;
-                                        if state.pos.current_element == db_end {
-                                            state.pos.offset = 0.;
-                                        } else {
                                             state.pos.offset -= size;
+                                        if state.pos > db_end {
+                                            state.pos = db_end;
                                         }
                                         self.scroll_publish(
                                             Some(size),
