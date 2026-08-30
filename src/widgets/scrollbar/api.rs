@@ -1,4 +1,7 @@
-use crate::widgets::scrollbar::{ScrollBar, style};
+use crate::widgets::scrollbar::{
+    ScrollBar,
+    style::{self, StyleFn},
+};
 
 pub fn scrollbar<'elem, M: 'elem, T: style::Catalog + 'elem>() -> ScrollBar<'elem, M, T> {
     ScrollBar::new()
@@ -9,7 +12,7 @@ impl<'elem, M: 'elem, T: style::Catalog + 'elem> ScrollBar<'elem, M, T> {
         Self {
             on_scroll: None,
             mut_on_scroll: None,
-            style: T::default(),
+            class: T::default(),
             is_vertical: true,
             width: 10.,
             base_view: 0.04,
@@ -33,6 +36,20 @@ impl<'elem, M: 'elem, T: style::Catalog + 'elem> ScrollBar<'elem, M, T> {
 
     pub fn on_scroll(mut self, on_scroll: impl Fn(f32) -> M + 'elem) -> Self {
         self.on_scroll = Some(Box::new(on_scroll));
+        self
+    }
+
+    pub fn style(mut self, style: impl Fn(&T, style::Status) -> style::Style + 'elem) -> Self
+    where
+        <T as style::Catalog>::Class<'elem>: From<StyleFn<'elem, T>>,
+    {
+        self.class = (Box::new(style) as StyleFn<'elem, T>).into();
+        self
+    }
+
+    pub fn class(mut self, class: impl Into<T::Class<'elem>>) -> Self
+    {
+        self.class = class.into();
         self
     }
 }

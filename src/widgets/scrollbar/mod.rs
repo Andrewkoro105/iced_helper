@@ -17,7 +17,7 @@ use iced::{
 pub struct ScrollBar<'elem, M, T: style::Catalog> {
     on_scroll: Option<Box<dyn Fn(f32) -> M + 'elem>>,
     mut_on_scroll: Option<Box<dyn FnMut(f32) + 'elem>>,
-    style: T::Class<'elem>,
+    class: T::Class<'elem>,
     is_vertical: bool,
     width: f32,
     base_view: f32,
@@ -79,7 +79,7 @@ impl<'elem, M, T: style::Catalog, R: Renderer> Widget<M, T, R> for ScrollBar<'el
             } else {
                 Status::Active
             },
-            &self.style,
+            &self.class,
         );
 
         renderer.fill_quad(
