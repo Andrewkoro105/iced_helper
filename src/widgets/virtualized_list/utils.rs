@@ -425,55 +425,39 @@ where
                         state.pos.offset -= scroll;
                     }
                 } else {
-                    if !(state.pos.current_element == db_end.current_element
-                        && state.pos.offset - scroll == db_end.offset)
-                    {
-                        if state.pos > db_end {
-                            state.pos = db_end;
-                            self.scroll_publish(
-                                None,
-                                renderer,
-                                Some(shell),
-                                state,
-                                scrollbar_state,
-                            );
-                        } else {
-                            self.db
-                                .clone()
-                                .into_iter()
-                                .enumerate()
-                                .skip(state.pos.current_element)
-                                .try_for_each(|(i, data)| {
-                                    let size = self.get_size_element(
-                                        i,
-                                        data,
-                                        renderer,
-                                        &state.cash_limits,
-                                    );
-
-                                    if state.pos.offset <= size {
-                                        None
-                                    } else {
-                                        state.pos.current_element += 1;
-                                        state.pos.offset -= size;
-                                        if state.pos > db_end {
-                                            state.pos = db_end;
-                                        }
-                                        self.scroll_publish(
-                                            Some(size),
-                                            renderer,
-                                            Some(shell),
-                                            state,
-                                            scrollbar_state,
-                                        );
-                                        Some(())
-                                    }
-                                });
-                        }
-                        result = true;
+                    if state.pos > db_end {
+                        state.pos = db_end;
+                        self.scroll_publish(None, renderer, Some(shell), state, scrollbar_state);
                     } else {
-                        state.pos.offset -= scroll;
+                        self.db
+                            .clone()
+                            .into_iter()
+                            .enumerate()
+                            .skip(state.pos.current_element)
+                            .try_for_each(|(i, data)| {
+                                let size =
+                                    self.get_size_element(i, data, renderer, &state.cash_limits);
+
+                                if state.pos.offset <= size {
+                                    None
+                                } else {
+                                    state.pos.current_element += 1;
+                                    state.pos.offset -= size;
+                                    if state.pos > db_end {
+                                        state.pos = db_end;
+                                    }
+                                    self.scroll_publish(
+                                        Some(size),
+                                        renderer,
+                                        Some(shell),
+                                        state,
+                                        scrollbar_state,
+                                    );
+                                    Some(())
+                                }
+                            });
                     }
+                    result = true;
                 }
             }
             _ => {}
