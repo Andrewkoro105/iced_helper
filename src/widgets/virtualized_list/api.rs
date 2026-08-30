@@ -76,6 +76,7 @@ where
             get_elem,
             on_scroll: None,
             scrollbar: scrollbar::api::scrollbar(),
+            max_scroller_size: 0.8,
             gap: None,
             is_vertical: true,
             spacing: 0.,
@@ -111,6 +112,7 @@ where
             get_elem,
             on_scroll: None,
             scrollbar,
+            max_scroller_size: 0.8,
             gap: None,
             is_vertical: true,
             spacing: 0.,
@@ -165,6 +167,11 @@ where
 
     pub fn gap(mut self, gap: impl Into<Pixels>) -> Self {
         self.gap = Some(gap.into().0);
+        self
+    }
+
+    pub fn max_scroller_size(mut self, max_scroller_size: impl Into<Pixels>) -> Self {
+        self.max_scroller_size = max_scroller_size.into().0;
         self
     }
 }

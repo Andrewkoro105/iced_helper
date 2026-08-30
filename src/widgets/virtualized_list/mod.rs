@@ -61,6 +61,7 @@ where
     get_elem: fn(D) -> Element<'elem, M, T, R>,
     on_scroll: Option<Box<dyn Fn(Pos) -> M + 'elem>>,
     scrollbar: SB,
+    max_scroller_size: f32,
     gap: Option<f32>,
     is_vertical: bool,
     spacing: f32,
@@ -278,23 +279,25 @@ where
         let scrollbar_state = tree.children[0].state.downcast_mut::<SBS>();
         let current_element = scrollbar_state.get_pos()
             * (self.db.clone().into_iter().len() as f32 - 1. + state.max_end_offset);
-        let old_pos = state.pos;
-        state.pos.current_element = current_element.trunc() as _;
-        state.pos.offset = current_element.fract()
-            * self.get_size_element(
-                state.pos.current_element,
-                self.db
-                    .clone()
-                    .into_iter()
-                    .skip(state.pos.current_element)
-                    .next()
-                    .unwrap(),
-                renderer,
-                &state.cash_limits,
-            );
-        if old_pos != state.pos {
-            self.layout_core(state, scrollbar_state, renderer, &state.cash_limits.clone());
-            shell.request_redraw();
+        if !current_element.is_nan() {
+            let old_pos = state.pos;
+            state.pos.current_element = current_element.trunc() as _;
+            state.pos.offset = current_element.fract()
+                * self.get_size_element(
+                    state.pos.current_element,
+                    self.db
+                        .clone()
+                        .into_iter()
+                        .skip(state.pos.current_element)
+                        .next()
+                        .unwrap(),
+                    renderer,
+                    &state.cash_limits,
+                );
+            if old_pos != state.pos {
+                self.layout_core(state, scrollbar_state, renderer, &state.cash_limits.clone());
+                shell.request_redraw();
+            }
         }
 
         if updated {

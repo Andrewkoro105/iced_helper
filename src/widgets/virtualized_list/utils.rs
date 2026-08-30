@@ -11,7 +11,6 @@ use iced::{
     mouse::{Cursor, ScrollDelta},
 };
 use indexmap::IndexMap;
-use tracing::debug;
 use std::debug_assert_matches;
 use std::hash::{DefaultHasher, Hash, Hasher};
 
@@ -26,8 +25,20 @@ where
     S: Widget<M, T, R>,
     SBS: ScrollBarState,
 {
-    fn set_scrollbar_pos(&self, pos: Pos, renderer: &R, state: &State, scrollbar_state: &mut SBS) {
-        let one_len = 1. / (self.db.clone().into_iter().len() as f32 - 1. + state.max_end_offset);
+    fn get_view(
+        &self,
+        pos: Pos,
+        renderer: &R,
+        state: &State,
+        scrollbar_state: &SBS,
+        one_len: f32,
+    ) -> Option<f32> {
+        let view_size = if self.is_vertical {
+            state.cash_limits.max().height
+        } else {
+            state.cash_limits.max().width
+        };
+
         let view_len = self.cash_elem.len();
         let end_elem_size = self.get_size_element(
             pos.current_element + view_len - 1,
@@ -43,10 +54,19 @@ where
         let end_offset = state.end_offset / end_elem_size;
         let start_offset = 1. - pos.offset;
 
-        let view = ((view_len as f32 - 2.) + start_offset + end_offset) * one_len;
+        if self.db.clone().into_iter().len() > 1 || (end_elem_size - self.spacing) > view_size {
+            let view = ((view_len as f32 - 2.) + start_offset + end_offset) * one_len;
+            (view > scrollbar_state.get_base_view()).then_some(view.min(self.max_scroller_size))
+        } else {
+            Some(1.)
+        }
+    }
+
+    fn set_scrollbar_pos(&self, pos: Pos, renderer: &R, state: &State, scrollbar_state: &mut SBS) {
+        let one_len = 1. / (self.db.clone().into_iter().len() as f32 - 1. + state.max_end_offset);
         scrollbar_state.set_pos_and_view(
             (pos.current_element as f32 * one_len) + (pos.offset * one_len),
-            (view > scrollbar_state.get_base_view()).then_some(view),
+            self.get_view(pos, renderer, state, scrollbar_state, one_len),
         );
     }
 
@@ -81,7 +101,12 @@ where
         }
     }
 
-    fn get_db_end_and_set_max_end_offset(&self, state: &mut State, size: Size, renderer: &R) -> Pos {
+    fn get_db_end_and_set_max_end_offset(
+        &self,
+        state: &mut State,
+        size: Size,
+        renderer: &R,
+    ) -> Pos {
         let view_size = if self.is_vertical {
             size.height
         } else {
@@ -301,7 +326,6 @@ where
             height: limits.max().height,
         };
         let db_end = self.get_db_end_and_set_max_end_offset(state, result, renderer);
-
         if state.pos > db_end {
             state.pos = db_end;
         }
@@ -351,7 +375,8 @@ where
             Event::Mouse(iced::mouse::Event::WheelScrolled {
                 delta: ScrollDelta::Lines { x, y },
             }) => {
-                let db_end = self.get_db_end_and_set_max_end_offset(state, layout.bounds().size(), renderer);
+                let db_end =
+                    self.get_db_end_and_set_max_end_offset(state, layout.bounds().size(), renderer);
                 let x = x * self.speed_scroll;
                 let y = y * self.speed_scroll;
                 let scroll = -if self.is_vertical { y } else { x };
@@ -430,7 +455,7 @@ where
                                         None
                                     } else {
                                         state.pos.current_element += 1;
-                                            state.pos.offset -= size;
+                                        state.pos.offset -= size;
                                         if state.pos > db_end {
                                             state.pos = db_end;
                                         }
