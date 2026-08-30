@@ -39,7 +39,7 @@ where
     VirtualizedList::new(db, get_elem)
 }
 
-pub fn new_with_scrollbar<'elem, D, M, T, R, I, S, SBS>(
+pub fn virtualized_list_with_scrollbar<'elem, D, M, T, R, I, S, SBS>(
     db: I,
     get_elem: fn(D) -> Element<'elem, M, T, R>,
     scrollbar: S,
@@ -54,7 +54,7 @@ where
     S: Widget<M, T, R>,
     SBS: ScrollBarState,
 {
-    VirtualizedList::new_with_scrollbar(db, get_elem, scrollbar)
+    VirtualizedList::with_scrollbar(db, get_elem, scrollbar)
 }
 
 impl<'elem, D, M, T, R, I> VirtualizedList<'elem, D, M, T, R, I, scrollbar::ScrollBar<'elem, M, T>, scrollbar::state::State>
@@ -101,7 +101,7 @@ where
     S: Widget<M, T, R>,
     SBS: ScrollBarState,
 {
-    pub fn new_with_scrollbar(
+    pub fn with_scrollbar(
         db: I,
         get_elem: fn(D) -> Element<'elem, M, T, R>,
         scrollbar: S,
