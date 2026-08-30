@@ -2,6 +2,8 @@ pub mod api;
 pub mod state;
 pub mod style;
 
+pub use api::*;
+
 use crate::widgets::scrollbar::{state::State, style::Status};
 use iced::{
     Element, Length, Rectangle, Size,

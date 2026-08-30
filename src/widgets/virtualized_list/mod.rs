@@ -2,6 +2,8 @@ pub mod api;
 pub mod operations;
 mod utils;
 
+pub use api::*;
+
 use iced::{
     Alignment, Element, Event, Length, Rectangle, Size, Vector,
     advanced::{

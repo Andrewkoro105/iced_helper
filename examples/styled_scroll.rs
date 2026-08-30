@@ -3,7 +3,7 @@ use iced::{
     advanced::renderer::Quad,
     widget::{container, row},
 };
-use iced_helper::widgets::scrollbar::{self, api::scrollbar};
+use iced_helper::widgets::scrollbar::{self, scrollbar};
 use tracing::{Level, info};
 use tracing_subscriber::{filter::Targets, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 

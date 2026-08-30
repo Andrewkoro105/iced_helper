@@ -2,7 +2,7 @@ use iced::{
     Element, Theme,
     widget::{container, text, tooltip},
 };
-use iced_helper::widgets::virtualized_list::api::virtualized_list;
+use iced_helper::widgets::virtualized_list::virtualized_list;
 use std::time::Instant;
 use tracing::{Level, info};
 use tracing_subscriber::{filter::Targets, fmt, layer::SubscriberExt, util::SubscriberInitExt};

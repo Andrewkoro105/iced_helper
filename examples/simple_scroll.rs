@@ -2,7 +2,7 @@ use iced::{
     Alignment, Element, Length, Theme,
     widget::{container, row},
 };
-use iced_helper::widgets::scrollbar::api::scrollbar;
+use iced_helper::widgets::scrollbar::scrollbar;
 use tracing::{Level, info};
 use tracing_subscriber::{filter::Targets, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 

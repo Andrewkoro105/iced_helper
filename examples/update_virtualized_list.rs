@@ -3,7 +3,7 @@ use iced::{
     widget::{Id, button, container, row, text},
 };
 use iced_helper::widgets::virtualized_list::{
-    Pos, api::virtualized_list, operations::scroll_to::scroll_to,
+    Pos, virtualized_list, operations::scroll_to::scroll_to,
 };
 use std::time::{Duration, Instant};
 use tracing::{Level, info};
