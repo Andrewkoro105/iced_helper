@@ -1,6 +1,6 @@
 [package]
 name = "iced_helper"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["Andrewkoro105"]
 license = "MIT"
 repository = "https://github.com/Andrewkoro105/iced_helper"
