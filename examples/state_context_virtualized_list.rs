@@ -3,7 +3,7 @@ use iced::{
     widget::{Id, button, container, row, text},
 };
 use iced_helper::widgets::virtualized_list::{
-    Pos, virtualized_list, operations::scroll_to::scroll_to,
+    Pos, operations::scroll_to::scroll_to, virtualized_list,
 };
 use std::time::{Duration, Instant};
 use tracing::{Level, info};
@@ -11,32 +11,37 @@ use tracing_subscriber::{filter::Targets, fmt, layer::SubscriberExt, util::Subsc
 
 struct TestState {
     data: Vec<(u64, usize)>,
+    vl_state: u64,
+    vl_context: usize,
 }
 
 impl TestState {
     fn view(state: &TestState) -> Element<'_, TestMessage, iced::Theme, iced::Renderer> {
         container(
             container(
-                virtualized_list(state.data.iter().enumerate()).get_elem(|(i, data), _, _| {
-                    let data_str = if (i / 100) % 2 == 0 {
-                        format!("{}\n", data.0).repeat(data.1)
-                    } else {
-                        data.0.to_string()
-                    };
-                    container(
-                        row![
-                            text!("elem: (\n{data_str})"),
-                            button("add").on_press(TestMessage::AddInElem(data.0, 1))
-                        ]
-                        .spacing(10),
-                    )
-                    .padding(5)
-                    .style(|theme| container::success(theme))
-                    .into()
-                })
-                .spacing(15)
-                .on_scroll(TestMessage::Scroll)
-                .set_id(Id::new("vl")),
+                virtualized_list(state.data.iter().enumerate())
+                    .state(&state.vl_state)
+                    .context(&state.vl_context)
+                    .get_elem(|(i, data), state, context| {
+                        let data_str = if (i / 100) % 2 == 0 {
+                            format!("{}\n", data.0).repeat(data.1)
+                        } else {
+                            data.0.to_string()
+                        };
+                        container(
+                            row![
+                                text!("elem: (\n{data_str}),\nstate: {state},\ncontext: {context}"),
+                                button("add").on_press(TestMessage::AddInElem(data.0, 1))
+                            ]
+                            .spacing(10),
+                        )
+                        .padding(5)
+                        .style(|theme| container::success(theme))
+                        .into()
+                    })
+                    .spacing(15)
+                    .on_scroll(TestMessage::Scroll)
+                    .set_id(Id::new("vl")),
             )
             .style(|theme| container::warning(theme)),
         )
@@ -68,16 +73,18 @@ fn main() {
         || TestState {
             data: {
                 let start = Instant::now();
-                let count = 2_000u64;
+                let count = 200u64;
                 let result = (0..count).zip(std::iter::repeat(1)).collect();
                 info!("load time: {:?}", start.elapsed());
                 result
             },
+            vl_state: 0,
+            vl_context: 2,
         },
         |this: &mut TestState, message: TestMessage| -> Task<TestMessage> {
             match message {
                 TestMessage::Add(add) => {
-                    this.data.iter_mut().for_each(|(a, _)| *a += add);
+                    this.vl_state += add;
                     Task::none()
                 }
                 TestMessage::Nl(a) => {

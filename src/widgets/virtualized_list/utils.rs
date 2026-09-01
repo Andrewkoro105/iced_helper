@@ -14,15 +14,17 @@ use indexmap::IndexMap;
 use std::debug_assert_matches;
 use std::hash::{DefaultHasher, Hash, Hasher};
 
-impl<'elem, D, M, T, R, I, S, SBS> VirtualizedList<'elem, D, M, T, R, I, S, SBS>
+impl<'elem, D, S, C, M, T, R, I, SB, SBS> VirtualizedList<'elem, D, S, C, M, T, R, I, SB, SBS>
 where
     D: Hash + 'elem,
+    S: Hash + Copy +'elem,
+    C: Copy + 'elem,
     R: Renderer,
     I: IntoIterator<
             IntoIter: Iterator<Item = D> + DoubleEndedIterator + ExactSizeIterator,
             Item = D,
         > + Clone,
-    S: Widget<M, T, R>,
+    SB: Widget<M, T, R>,
     SBS: ScrollBarState,
 {
     fn get_view(
@@ -232,7 +234,7 @@ where
     }
 
     pub(super) fn get_size_element(&self, i: usize, data: D, renderer: &R, limits: &Limits) -> f32 {
-        let mut elem = (self.get_elem)(data);
+        let mut elem = (self.get_elem)(data, self.state, self.context);
         let mut tree = Tree::new(elem.as_widget());
         let widget = elem.as_widget_mut();
         self.get_size(
@@ -260,6 +262,7 @@ where
             let mut hasher = DefaultHasher::new();
             data.hash(&mut hasher);
             self.get_elem.hash(&mut hasher);
+            self.state.hash(&mut hasher);
             hasher.finish()
         };
 
@@ -282,7 +285,7 @@ where
             }
         }
 
-        let mut elem = (self.get_elem)(data);
+        let mut elem = (self.get_elem)(data, self.state, self.context);
         let mut tree = Tree::new(elem.as_widget_mut());
         let node = self.get_node(
             i,

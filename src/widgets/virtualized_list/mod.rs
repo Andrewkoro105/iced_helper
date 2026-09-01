@@ -47,9 +47,11 @@ pub struct State {
     user_pos: Option<Pos>,
 }
 
-pub struct VirtualizedList<'elem, D, M, T, R, I, SB, SBS>
+pub struct VirtualizedList<'elem, D, S, C, M, T, R, I, SB, SBS>
 where
-    D: 'elem,
+    D: Hash + 'elem,
+    S: Hash + Copy +'elem,
+    C: Copy + 'elem,
     R: Renderer,
     I: IntoIterator<
             IntoIter: Iterator<Item = D> + DoubleEndedIterator + ExactSizeIterator,
@@ -60,7 +62,9 @@ where
 {
     id: Option<Id>,
     db: I,
-    get_elem: fn(D) -> Element<'elem, M, T, R>,
+    state: S,
+    context: C,
+    get_elem: fn(D, S, C) -> Element<'elem, M, T, R>,
     on_scroll: Option<Box<dyn Fn(Pos) -> M + 'elem>>,
     scrollbar: SB,
     max_scroller_size: f32,
@@ -88,10 +92,12 @@ impl Default for State {
     }
 }
 
-impl<'elem, D, M, T, R, I, S, SBS> From<VirtualizedList<'elem, D, M, T, R, I, S, SBS>>
+impl<'elem, D, S, C, M, T, R, I, SB, SBS> From<VirtualizedList<'elem, D, S, C, M, T, R, I, SB, SBS>>
     for Element<'elem, M, T, R>
 where
     D: Hash + 'elem,
+    S: Hash + Copy +'elem,
+    C: Copy + 'elem,
     M: 'elem,
     T: 'elem,
     R: Renderer + 'elem,
@@ -100,23 +106,25 @@ where
             Item = D,
         > + Clone
         + 'elem,
-    S: Widget<M, T, R> + 'elem,
+    SB: Widget<M, T, R> + 'elem,
     SBS: ScrollBarState + 'static,
 {
-    fn from(value: VirtualizedList<'elem, D, M, T, R, I, S, SBS>) -> Self {
+    fn from(value: VirtualizedList<'elem, D, S, C, M, T, R, I, SB, SBS>) -> Self {
         Self::new(value)
     }
 }
 
-impl<'elem, D, M, T, R, I, S, SBS> Widget<M, T, R> for VirtualizedList<'elem, D, M, T, R, I, S, SBS>
+impl<'elem, D, S, C, M, T, R, I, SB, SBS> Widget<M, T, R> for VirtualizedList<'elem, D, S, C, M, T, R, I, SB, SBS>
 where
     D: Hash + 'elem,
+    S: Hash + Copy +'elem,
+    C: Copy + 'elem,
     R: Renderer,
     I: IntoIterator<
             IntoIter: Iterator<Item = D> + DoubleEndedIterator + ExactSizeIterator,
             Item = D,
         > + Clone,
-    S: Widget<M, T, R>,
+    SB: Widget<M, T, R>,
     SBS: ScrollBarState + 'static,
 {
     fn tag(&self) -> tree::Tag {

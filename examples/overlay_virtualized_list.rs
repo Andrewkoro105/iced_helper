@@ -14,7 +14,7 @@ struct TestState {
 impl TestState {
     fn view(state: &TestState) -> Element<'_, (), iced::Theme, iced::Renderer> {
         container(
-            container(virtualized_list(&state.data, |data| {
+            container(virtualized_list(&state.data).get_elem(|data, _, _| {
                 container(tooltip(text!("elem: ({data})"), text!("tolltip: ({data})"), tooltip::Position::Bottom))
                     .padding(5)
                     .style(|theme| container::success(theme))

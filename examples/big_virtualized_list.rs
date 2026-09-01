@@ -15,7 +15,7 @@ impl TestState {
     fn view(state: &TestState) -> Element<'_, (), iced::Theme, iced::Renderer> {
         container(
             container(
-                virtualized_list(&state.data, |data| {
+                virtualized_list(&state.data).get_elem(|data, _, _| {
                     container(text(data))
                         .padding(5)
                         .style(|theme| container::success(theme))
