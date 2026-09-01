@@ -30,7 +30,21 @@ impl TestState {
                             scroller_shadow: Default::default(),
                             scroller_snap: Quad::default().snap,
                         },
-                        scrollbar::style::Status::Hovered => scrollbar::style::Style {
+                        scrollbar::style::Status::Hovered{is_on_scroller: false} => scrollbar::style::Style {
+                            background: Background::Color(
+                                theme.extended_palette().warning.base.color
+                            ),
+                            border: Default::default(),
+                            shadow: Default::default(),
+                            snap: Quad::default().snap,
+                            scroller_background: Background::Color(
+                                theme.extended_palette().background.strong.color,
+                            ),
+                            scroller_border: Default::default(),
+                            scroller_shadow: Default::default(),
+                            scroller_snap: Quad::default().snap,
+                        },
+                        scrollbar::style::Status::Hovered{is_on_scroller: true} => scrollbar::style::Style {
                             background: Background::Color(
                                 theme.extended_palette().background.weak.color
                             ),

@@ -2,7 +2,7 @@ use iced::{Background, Border, Shadow, Theme, advanced::renderer::Quad};
 
 pub enum Status {
     Active,
-    Hovered,
+    Hovered { is_on_scroller: bool },
     Dragged,
 }
 
@@ -33,14 +33,12 @@ impl Catalog for Theme {
                 scroller_shadow: Default::default(),
                 scroller_snap: Quad::default().snap,
             },
-            Status::Hovered => Style {
+            Status::Hovered { .. } => Style {
                 background: Background::Color(theme.extended_palette().background.weak.color),
                 border: Default::default(),
                 shadow: Default::default(),
                 snap: Quad::default().snap,
-                scroller_background: Background::Color(
-                    theme.extended_palette().primary.base.color,
-                ),
+                scroller_background: Background::Color(theme.extended_palette().primary.base.color),
                 scroller_border: Default::default(),
                 scroller_shadow: Default::default(),
                 scroller_snap: Quad::default().snap,

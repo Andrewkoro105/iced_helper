@@ -81,7 +81,7 @@ impl<'elem, M, T: style::Catalog, R: Renderer> Widget<M, T, R> for ScrollBar<'el
             if state.offset.is_some() {
                 Status::Dragged
             } else if state.is_focused {
-                Status::Hovered
+                Status::Hovered{is_on_scroller: state.is_scroller_focused}
             } else {
                 Status::Active
             },
@@ -133,7 +133,7 @@ impl<'elem, M, T: style::Catalog, R: Renderer> Widget<M, T, R> for ScrollBar<'el
                     } else if cursor.is_over(base_bounds) {
                         state.set_pos(self.is_vertical, &base_bounds, position);
                         state.offset = Some(0.);
-                        state.is_focused = true;
+                        state.is_scroller_focused = true;
                         if let Some(on_scroll) = self.on_scroll.as_ref() {
                             shell.publish(on_scroll(state.pos));
                         }
@@ -145,9 +145,14 @@ impl<'elem, M, T: style::Catalog, R: Renderer> Widget<M, T, R> for ScrollBar<'el
                 }
             }
             iced::Event::Mouse(iced::mouse::Event::CursorMoved { .. }) => {
-                let is_focused = cursor.is_over(scroller_bounds);
+                let is_focused = cursor.is_over(base_bounds);
+                let is_scroller_focused = cursor.is_over(scroller_bounds);
                 if state.is_focused != is_focused {
                     state.is_focused = is_focused;
+                    shell.request_redraw();
+                }
+                if state.is_scroller_focused != is_scroller_focused {
+                    state.is_scroller_focused = is_scroller_focused;
                     shell.request_redraw();
                 }
                 if state.offset.is_some() {

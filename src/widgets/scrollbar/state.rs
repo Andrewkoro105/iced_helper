@@ -8,6 +8,7 @@ pub struct State {
     pub view: Option<f32>,
     pub offset: Option<f32>,
     pub is_focused: bool,
+    pub is_scroller_focused: bool,
     pub base_view: f32,
 }
 
@@ -18,6 +19,7 @@ impl State {
             view: None,
             offset: None,
             is_focused: false,
+            is_scroller_focused: false,
             base_view,
         }
     }
