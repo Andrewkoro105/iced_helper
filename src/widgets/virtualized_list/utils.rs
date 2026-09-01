@@ -1,5 +1,5 @@
 use crate::widgets::virtualized_list::{
-    CashDataElement, Pos, ScrollBarState, State, VirtualizedList,
+    CashDataElement, Pos, ScrollBar, ScrollBarState, State, VirtualizedList
 };
 use iced::{
     Alignment, Element, Event, Length, Rectangle, Size, Vector,
@@ -14,7 +14,7 @@ use indexmap::IndexMap;
 use std::debug_assert_matches;
 use std::hash::{DefaultHasher, Hash, Hasher};
 
-impl<'elem, D, S, C, M, T, R, I, SB, SBS> VirtualizedList<'elem, D, S, C, M, T, R, I, SB, SBS>
+impl<'elem, D, S, C, M, T, R, I, SB> VirtualizedList<'elem, D, S, C, M, T, R, I, SB>
 where
     D: Hash + 'elem,
     S: Hash + Copy +'elem,
@@ -24,15 +24,14 @@ where
             IntoIter: Iterator<Item = D> + DoubleEndedIterator + ExactSizeIterator,
             Item = D,
         > + Clone,
-    SB: Widget<M, T, R>,
-    SBS: ScrollBarState,
+    SB: ScrollBar<M, T, R>,
 {
     fn get_view(
         &self,
         pos: Pos,
         renderer: &R,
         state: &State,
-        scrollbar_state: &SBS,
+        scrollbar_state: &SB::State,
         one_len: f32,
     ) -> Option<f32> {
         let view_size = if self.is_vertical {
@@ -64,7 +63,7 @@ where
         }
     }
 
-    fn set_scrollbar_pos(&self, pos: Pos, renderer: &R, state: &State, scrollbar_state: &mut SBS) {
+    fn set_scrollbar_pos(&self, pos: Pos, renderer: &R, state: &State, scrollbar_state: &mut SB::State) {
         let one_len = 1. / (self.db.clone().into_iter().len() as f32 - 1. + state.max_end_offset);
         scrollbar_state.set_pos_and_view(
             (pos.current_element as f32 * one_len) + (pos.offset * one_len),
@@ -78,7 +77,7 @@ where
         renderer: &R,
         shell: Option<&mut Shell<M>>,
         state: &State,
-        scrollbar_state: &mut SBS,
+        scrollbar_state: &mut SB::State,
     ) {
         let mut pos = state.pos;
         pos.offset /= start_size.unwrap_or_else(|| {
@@ -319,7 +318,7 @@ where
     pub(super) fn layout_core(
         &mut self,
         state: &mut State,
-        scrollbar_state: &mut SBS,
+        scrollbar_state: &mut SB::State,
         renderer: &R,
         limits: &Limits,
     ) -> Size {
@@ -364,7 +363,7 @@ where
     pub(super) fn my_update(
         &mut self,
         state: &mut State,
-        scrollbar_state: &mut SBS,
+        scrollbar_state: &mut SB::State,
         event: &Event,
         layout: Layout<'_>,
         _cursor: Cursor,

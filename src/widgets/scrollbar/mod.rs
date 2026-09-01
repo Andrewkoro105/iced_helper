@@ -4,7 +4,11 @@ pub mod style;
 
 pub use api::*;
 
-use crate::widgets::scrollbar::{state::State, style::Status};
+use crate::widgets::scrollbar::{
+    state::State,
+    style::{Catalog, Status},
+};
+use crate::widgets::virtualized_list::ScrollBar as VLScrollBar;
 use iced::{
     Element, Length, Rectangle, Size,
     advanced::{
@@ -166,4 +170,8 @@ impl<'elem, M, T: style::Catalog, R: Renderer> Widget<M, T, R> for ScrollBar<'el
             _ => {}
         }
     }
+}
+
+impl<'elem, M, T: Catalog, R: Renderer> VLScrollBar<M, T, R> for ScrollBar<'elem, M, T> {
+    type State = state::State;
 }

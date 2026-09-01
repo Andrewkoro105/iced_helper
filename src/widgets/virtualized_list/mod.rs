@@ -17,7 +17,11 @@ use iced::{
     widget::Id,
 };
 use indexmap::IndexMap;
-use std::{hash::Hash, marker::PhantomData};
+use std::hash::Hash;
+
+pub trait ScrollBar<M, T, R: Renderer>: Widget<M, T, R> {
+    type State: ScrollBarState;
+}
 
 pub trait ScrollBarState {
     fn get_pos(&self) -> f32;
@@ -47,18 +51,17 @@ pub struct State {
     user_pos: Option<Pos>,
 }
 
-pub struct VirtualizedList<'elem, D, S, C, M, T, R, I, SB, SBS>
+pub struct VirtualizedList<'elem, D, S, C, M, T, R, I, SB>
 where
     D: Hash + 'elem,
-    S: Hash + Copy +'elem,
+    S: Hash + Copy + 'elem,
     C: Copy + 'elem,
     R: Renderer,
     I: IntoIterator<
             IntoIter: Iterator<Item = D> + DoubleEndedIterator + ExactSizeIterator,
             Item = D,
         > + Clone,
-    SB: Widget<M, T, R>,
-    SBS: ScrollBarState,
+    SB: ScrollBar<M, T, R>,
 {
     id: Option<Id>,
     db: I,
@@ -76,7 +79,6 @@ where
     align: Alignment,
     speed_scroll: f32,
     cash_elem: IndexMap<usize, Element<'elem, M, T, R>>,
-    _phantom: PhantomData<SBS>,
 }
 
 impl Default for State {
@@ -92,11 +94,11 @@ impl Default for State {
     }
 }
 
-impl<'elem, D, S, C, M, T, R, I, SB, SBS> From<VirtualizedList<'elem, D, S, C, M, T, R, I, SB, SBS>>
+impl<'elem, D, S, C, M, T, R, I, SB> From<VirtualizedList<'elem, D, S, C, M, T, R, I, SB>>
     for Element<'elem, M, T, R>
 where
     D: Hash + 'elem,
-    S: Hash + Copy +'elem,
+    S: Hash + Copy + 'elem,
     C: Copy + 'elem,
     M: 'elem,
     T: 'elem,
@@ -106,26 +108,27 @@ where
             Item = D,
         > + Clone
         + 'elem,
-    SB: Widget<M, T, R> + 'elem,
-    SBS: ScrollBarState + 'static,
+    SB: ScrollBar<M, T, R> + 'elem,
+    SB::State: 'static,
 {
-    fn from(value: VirtualizedList<'elem, D, S, C, M, T, R, I, SB, SBS>) -> Self {
+    fn from(value: VirtualizedList<'elem, D, S, C, M, T, R, I, SB>) -> Self {
         Self::new(value)
     }
 }
 
-impl<'elem, D, S, C, M, T, R, I, SB, SBS> Widget<M, T, R> for VirtualizedList<'elem, D, S, C, M, T, R, I, SB, SBS>
+impl<'elem, D, S, C, M, T, R, I, SB> Widget<M, T, R>
+    for VirtualizedList<'elem, D, S, C, M, T, R, I, SB>
 where
     D: Hash + 'elem,
-    S: Hash + Copy +'elem,
+    S: Hash + Copy + 'elem,
     C: Copy + 'elem,
     R: Renderer,
     I: IntoIterator<
             IntoIter: Iterator<Item = D> + DoubleEndedIterator + ExactSizeIterator,
             Item = D,
         > + Clone,
-    SB: Widget<M, T, R>,
-    SBS: ScrollBarState + 'static,
+    SB: ScrollBar<M, T, R>,
+    SB::State: 'static,
 {
     fn tag(&self) -> tree::Tag {
         struct A;
@@ -160,7 +163,7 @@ where
 
     fn layout(&mut self, tree: &mut Tree, renderer: &R, limits: &Limits) -> Node {
         let scrollbar_node = self.layout_scrollbar(&mut tree.children[0], renderer, limits);
-        let scrollbar_state = tree.children[0].state.downcast_mut::<SBS>();
+        let scrollbar_state = tree.children[0].state.downcast_mut::<SB::State>();
         let is_view_gap = scrollbar_state
             .get_view()
             .map(|view| view < 1.)
@@ -211,7 +214,7 @@ where
         cursor: Cursor,
         viewport: &Rectangle,
     ) {
-        let scrollbar_state = tree.children[0].state.downcast_ref::<SBS>();
+        let scrollbar_state = tree.children[0].state.downcast_ref::<SB::State>();
         let is_view_gap = scrollbar_state
             .get_view()
             .map(|view| view < 1.)
@@ -263,7 +266,7 @@ where
         viewport: &Rectangle,
     ) {
         let state = tree.state.downcast_mut::<State>();
-        let scrollbar_state = tree.children[0].state.downcast_mut::<SBS>();
+        let scrollbar_state = tree.children[0].state.downcast_mut::<SB::State>();
         let updated = self.my_update(
             state,
             scrollbar_state,
@@ -286,7 +289,7 @@ where
             shell,
             viewport,
         );
-        let scrollbar_state = tree.children[0].state.downcast_mut::<SBS>();
+        let scrollbar_state = tree.children[0].state.downcast_mut::<SB::State>();
         let current_element = scrollbar_state.get_pos()
             * (self.db.clone().into_iter().len() as f32 - 1. + state.max_end_offset);
         if !current_element.is_nan() {
