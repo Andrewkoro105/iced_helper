@@ -38,7 +38,7 @@ impl TestState {
                         .into()
                     })
                     .spacing(15)
-                    .on_scroll(TestMessage::Scroll)
+                    //.on_scroll(TestMessage::Scroll)
                     .set_id(Id::new("vl")),
             )
             .style(|theme| container::warning(theme)),
@@ -62,7 +62,7 @@ enum TestMessage {
 
 fn main() {
     let filter = Targets::new()
-        .with_target("iced_helper", Level::DEBUG)
+        .with_target("iced_helper", Level::TRACE)
         .with_default(Level::INFO);
 
     tracing_subscriber::registry()

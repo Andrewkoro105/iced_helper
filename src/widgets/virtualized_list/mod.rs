@@ -17,6 +17,7 @@ use iced::{
     widget::Id,
 };
 use indexmap::IndexMap;
+use tracing::{debug, trace};
 use std::hash::Hash;
 
 pub trait ScrollBar<M, T, R: Renderer>: Widget<M, T, R> {
@@ -131,11 +132,13 @@ where
     SB::State: 'static,
 {
     fn tag(&self) -> tree::Tag {
+        trace!("tag");
         struct A;
         tree::Tag::of::<A>()
     }
 
     fn diff(&self, tree: &mut Tree) {
+        trace!("diff");
         if tree.tag == self.tag() {
             if tree.children.is_empty() {
                 tree.children = self.children();
@@ -147,14 +150,17 @@ where
     }
 
     fn state(&self) -> tree::State {
+        trace!("state");
         tree::State::Some(Box::new(State::default()) as _)
     }
 
     fn children(&self) -> Vec<Tree> {
+        trace!("children");
         vec![Tree::new(&self.scrollbar as &dyn Widget<M, T, R>)]
     }
 
     fn size(&self) -> Size<Length> {
+        trace!("size");
         Size {
             width: self.width,
             height: self.height,
@@ -162,6 +168,8 @@ where
     }
 
     fn layout(&mut self, tree: &mut Tree, renderer: &R, limits: &Limits) -> Node {
+        trace!("layout");
+
         let scrollbar_node = self.layout_scrollbar(&mut tree.children[0], renderer, limits);
         let scrollbar_state = tree.children[0].state.downcast_mut::<SB::State>();
         let is_view_gap = scrollbar_state
@@ -180,6 +188,8 @@ where
 
         let state = tree.state.downcast_mut::<State>();
         if let Some(mut scroll) = state.user_pos {
+            debug!("update scroll: {scroll:?}");
+
             state.user_pos = None;
             let data = self
                 .db
@@ -214,6 +224,7 @@ where
         cursor: Cursor,
         viewport: &Rectangle,
     ) {
+        trace!("draw");
         let scrollbar_state = tree.children[0].state.downcast_ref::<SB::State>();
         let is_view_gap = scrollbar_state
             .get_view()
@@ -265,8 +276,15 @@ where
         shell: &mut Shell<'_, M>,
         viewport: &Rectangle,
     ) {
+        trace!("update: {event:?}");
+
         let state = tree.state.downcast_mut::<State>();
         let scrollbar_state = tree.children[0].state.downcast_mut::<SB::State>();
+
+        if state.user_pos.is_some() {
+            shell.invalidate_layout();
+        }
+
         let updated = self.my_update(
             state,
             scrollbar_state,
@@ -353,6 +371,8 @@ where
         viewport: &Rectangle,
         renderer: &R,
     ) -> mouse::Interaction {
+        trace!("mouse_interaction");
+
         let state = tree.state.downcast_ref::<State>();
         state
             .cash_elements
@@ -381,6 +401,8 @@ where
         renderer: &R,
         operation: &mut dyn iced::advanced::widget::Operation,
     ) {
+        trace!("operate");
+
         let state = tree.state.downcast_mut::<State>();
 
         operation.custom(self.id.as_ref(), layout.bounds(), state);
@@ -411,6 +433,8 @@ where
         viewport: &Rectangle,
         translation: Vector,
     ) -> Option<overlay::Element<'a, M, T, R>> {
+        trace!("overlay");
+
         tree.state
             .downcast_mut::<State>()
             .cash_elements
