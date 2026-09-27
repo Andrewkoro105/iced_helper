@@ -316,6 +316,12 @@ where
         if updated {
             shell.capture_event();
         } else {
+            let cursor = if cursor.is_over(layout.bounds()) {
+                cursor
+            } else {
+                cursor.levitate()
+            };
+
             state
                 .cash_elements
                 .iter_mut()
@@ -333,7 +339,7 @@ where
                         renderer,
                         clipboard,
                         shell,
-                        viewport,
+                        &layout.bounds(),
                     );
                 });
         }

@@ -1,42 +1,45 @@
 use iced::{
-    Element, Renderer, Subscription, Task, Theme, time,
+    Element, Event, Renderer, Subscription, Task, Theme, event,
+    keyboard::{Key, key::Named},
     widget::{Id, button, container, row, text},
 };
 use iced_helper::widgets::virtualized_list::{
-    Pos, virtualized_list, operations::scroll_to::scroll_to,
+    Pos, operations::scroll_to::scroll_to, virtualized_list,
 };
-use std::time::{Duration, Instant};
+use std::time::Instant;
 use tracing::{Level, info};
 use tracing_subscriber::{filter::Targets, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
 struct TestState {
     data: Vec<(u64, usize)>,
+    current: usize,
 }
 
 impl TestState {
     fn view(state: &TestState) -> Element<'_, TestMessage, iced::Theme, iced::Renderer> {
         container(
             container(
-                virtualized_list(state.data.iter().enumerate()).get_elem(|(i, data), _, _| {
-                    let data_str = if (i / 100) % 2 == 0 {
-                        format!("{}\n", data.0).repeat(data.1)
-                    } else {
-                        data.0.to_string()
-                    };
-                    container(
-                        row![
-                            text!("elem: (\n{data_str})"),
-                            button("add").on_press(TestMessage::AddInElem(data.0, 1))
-                        ]
-                        .spacing(10),
-                    )
-                    .padding(5)
-                    .style(|theme| container::success(theme))
-                    .into()
-                })
-                .spacing(15)
-                .on_scroll(TestMessage::Scroll)
-                .set_id(Id::new("vl")),
+                virtualized_list(state.data.iter().enumerate())
+                    .get_elem(|(i, data), _, _| {
+                        let data_str = if (i / 100) % 2 == 0 {
+                            format!("{}\n", data.0).repeat(data.1)
+                        } else {
+                            data.0.to_string()
+                        };
+                        container(
+                            row![
+                                text!("elem: (\n{data_str})"),
+                                button("add").on_press(TestMessage::AddInElem(data.0, 1))
+                            ]
+                            .spacing(10),
+                        )
+                        .padding(5)
+                        .style(|theme| container::success(theme))
+                        .into()
+                    })
+                    .spacing(15)
+                    .on_scroll(TestMessage::Scroll)
+                    .set_id(Id::new("vl")),
             )
             .style(|theme| container::warning(theme)),
         )
@@ -52,6 +55,9 @@ enum TestMessage {
     Nl(usize),
     Scroll(Pos),
     SetScroll(Pos),
+    Down,
+    Up,
+    None,
 }
 
 fn main() {
@@ -68,11 +74,12 @@ fn main() {
         || TestState {
             data: {
                 let start = Instant::now();
-                let count = 2_000u64;
+                let count = 2_00u64;
                 let result = (0..count).zip(std::iter::repeat(1)).collect();
                 info!("load time: {:?}", start.elapsed());
                 result
             },
+            current: 0,
         },
         |this: &mut TestState, message: TestMessage| -> Task<TestMessage> {
             match message {
@@ -92,7 +99,21 @@ fn main() {
                     info!("{pos:?}");
                     Task::none()
                 }
-                TestMessage::SetScroll(pos) => scroll_to(Id::new("vl"), pos),
+                TestMessage::SetScroll(pos) => {
+                    info!("SetScroll");
+                    scroll_to(Id::new("vl"), pos)
+                },
+                TestMessage::Down => {
+                    info!("TestMessage::Down: {} -> {}", this.current, this.current - 1);
+                    this.current -= 1;
+                    scroll_to(Id::new("vl"), Pos { current_element: this.current, offset: 0. })
+                },
+                TestMessage::Up =>  {
+                    info!("TestMessage::Up: {} -> {}", this.current, this.current + 1);
+                    this.current += 1;
+                    scroll_to(Id::new("vl"), Pos { current_element: this.current, offset: 0. })
+                },
+                TestMessage::None => {Task::none()},
             }
         },
         TestState::view,
@@ -100,12 +121,23 @@ fn main() {
     .theme(Theme::Dark)
     .subscription(|_: &TestState| {
         Subscription::batch(vec![
-            time::repeat(|| async { TestMessage::Add(2) }, Duration::from_secs(2)),
-            time::repeat(|| async { TestMessage::Nl(1) }, Duration::from_secs(5)),
-            time::repeat(
-                || async { TestMessage::SetScroll(Pos::new(4, 0.5)) },
-                Duration::from_secs(10),
-            ),
+            //time::repeat(|| async { TestMessage::Add(2) }, Duration::from_secs(2)),
+            //time::repeat(|| async { TestMessage::Nl(1) }, Duration::from_secs(5)),
+            // time::repeat(
+            //     || async { TestMessage::SetScroll(Pos::new(4, 0.5)) },
+            //     Duration::from_secs(10),
+            // ),
+            event::listen().map(|event| match event {
+                Event::Keyboard(iced::keyboard::Event::KeyPressed {
+                    key: Key::Named(Named::ArrowUp),
+                    ..
+                }) => TestMessage::Down,
+                Event::Keyboard(iced::keyboard::Event::KeyPressed {
+                    key: Key::Named(Named::ArrowDown),
+                    ..
+                }) => TestMessage::Up,
+                _ => TestMessage::None,
+            }),
         ])
     })
     .run()
