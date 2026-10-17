@@ -1,10 +1,11 @@
-//! Set of interface elements 
+//! Set of interface elements
 
 pub mod my_tooltip;
 pub mod num_input;
 pub mod select_file;
 pub mod start_progress;
 
+use iced::alignment::Vertical;
 use iced::widget::{button, container, row, text, text_input};
 use iced::{Element, Length};
 use std::path::PathBuf;
@@ -58,6 +59,7 @@ impl<L: Into<Length> + Clone> ParamSettings<L> {
             container(text(name)).align_right(self.name_size.clone()),
             input.into()
         ]
+        .align_y(Vertical::Center)
         .spacing(5)
         .into()
     }
@@ -125,7 +127,7 @@ impl<L: Into<Length> + Clone> ParamSettings<L> {
     ///             },
     ///             Message::SelectPathParam => select_file(
     ///                Message::SetPathParam,
-    ///                FileTypes::Files(
+    ///                FileTypes::File(
     ///                    TypeAction::Save,
     ///                    vec![
     ///                        (
@@ -138,6 +140,8 @@ impl<L: Into<Length> + Clone> ParamSettings<L> {
     ///                        ("text", &["txt"]),
     ///                    ],
     ///                ),
+    ///                 PathBuf::new(),
+    ///                 "",
     ///            )
     ///         }
     ///     }
@@ -145,8 +149,8 @@ impl<L: Into<Length> + Clone> ParamSettings<L> {
     ///     fn view(&self) -> Element<'_, Message> {
     ///         let param_settings = ParamSettings {name_size: 100.};
     ///         param_settings.create_path_param(
-    ///             "path_param", 
-    ///             &self.path_param.to_str().unwrap(), 
+    ///             "path_param",
+    ///             &self.path_param.to_str().unwrap(),
     ///             PathType::File,
     ///             Message::SetPathParam,
     ///             Message::SelectPathParam,
@@ -184,6 +188,7 @@ impl<L: Into<Length> + Clone> ParamSettings<L> {
                     .on_press(button_message)
                 ),
             ]
+            .align_y(Vertical::Center)
             .spacing(10),
         )
         .map(Into::into)

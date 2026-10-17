@@ -1,8 +1,8 @@
 //! A wrapper for `native_dialog::FileDialog` that allows you to quickly and easily request the path to a folder or file
 
 use iced::{Task, advanced::graphics::futures::MaybeSend};
-use native_dialog::FileDialog;
-use std::path::PathBuf;
+use rfd::{AsyncFileDialog, FileHandle};
+use std::path::{Path, PathBuf};
 
 /// Specifies the purpose of the requested path (the save path does not have to exist)
 pub enum TypeAction {
@@ -13,7 +13,7 @@ pub enum TypeAction {
 /// Type of requested path.
 /// When selecting a file, you need to specify the purpose of the path and which files are suitable (first by specifying the file type and then the extensions that match it)
 pub enum FileTypes {
-    Files(TypeAction, Vec<(&'static str, &'static [&'static str])>),
+    File(TypeAction, Vec<(&'static str, &'static [&'static str])>),
     Dir,
 }
 
@@ -25,16 +25,16 @@ pub enum FileTypes {
 ///     TypeAction,
 /// };
 /// use std::path::PathBuf;
-/// 
-/// 
+///
+///
 /// #[derive(Clone)]
 /// enum Message {
 ///     SetPathParam(PathBuf),
 /// }
-/// 
+///
 /// select_file::<_, Message, Message>(
 ///     Message::SetPathParam,
-///     FileTypes::Files(
+///     FileTypes::File(
 ///         TypeAction::Save,
 ///         vec![
 ///             (
@@ -47,31 +47,43 @@ pub enum FileTypes {
 ///             ("text", &["txt"]),
 ///         ],
 ///     ),
+///     PathBuf::new(),
+///     "",
 /// );
 /// ```
-pub fn select_file<F, M, FM>(message: F, file_types: FileTypes) -> Task<M>
+pub fn select_file<F, M, FM>(
+    message: F,
+    file_types: FileTypes,
+    directory: PathBuf,
+    file_name: impl Into<String> + Send + 'static,
+) -> Task<M>
 where
-    F: Fn(PathBuf) -> FM + Clone,
+    FM: 'static,
+    F: Fn(PathBuf) -> FM + Clone + Send + 'static,
     M: From<FM> + MaybeSend + 'static,
 {
-    let mut dialog = FileDialog::new().set_location("~/Desktop");
-    let path = match file_types {
-        FileTypes::Files(type_action, file_types) => {
-            for (file_type, extensions) in file_types {
-                dialog = dialog.clone().add_filter(file_type, extensions);
+    Task::future(async {
+        let mut file_dialog = AsyncFileDialog::new()
+            .set_directory(directory)
+            .set_file_name(file_name);
+        let file = match file_types {
+            FileTypes::File(type_action, items) => {
+                for (name, extensions) in items {
+                    file_dialog = file_dialog.add_filter(name, extensions);
+                }
+                match type_action {
+                    TypeAction::Save => file_dialog.save_file().await,
+                    TypeAction::Open => file_dialog.pick_file().await,
+                }
             }
-            match type_action {
-                TypeAction::Save => dialog.show_save_single_file(),
-                TypeAction::Open => dialog.show_open_single_file(),
-            }
-            
-        }
-        FileTypes::Dir => dialog.show_open_single_dir(),
-    };
+            FileTypes::Dir => file_dialog.pick_folder().await,
+        };
 
-    if let Some(str) = path.ok().flatten() {
-        Task::done(message(str).into())
-    } else {
-        Task::none()
-    }
+        file.as_ref()
+            .map(FileHandle::path)
+            .map(Path::to_path_buf)
+            .map(message)
+            .map(Into::<M>::into)
+    })
+    .and_then(|m| Task::done(m))
 }
