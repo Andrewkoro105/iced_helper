@@ -1649,7 +1649,7 @@ dependencies = [
 
 [[package]]
 name = "iced_helper"
-version = "0.5.2"
+version = "0.6.0"
 dependencies = [
  "futures",
  "futures-channel",
