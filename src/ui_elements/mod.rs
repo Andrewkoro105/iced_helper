@@ -4,11 +4,13 @@ pub mod my_tooltip;
 pub mod num_input;
 pub mod select_file;
 pub mod start_progress;
+pub mod dictionary;
 
 use iced::alignment::Vertical;
 use iced::widget::{button, container, row, text, text_input};
 use iced::{Element, Length};
 use std::path::PathBuf;
+use dictionary::Dictionary;
 
 /// Allows you to easily create user-input fields so that the input fields are aligned
 /// ```
@@ -26,15 +28,16 @@ use std::path::PathBuf;
 ///
 /// impl State {
 ///     fn view(&self) -> Element<'_, Message> {
-///         let param_settings = ParamSettings {name_size: 100.};
+///         let param_settings = ParamSettings {name_size: 100., dictionary: Dictionary::default() };
 ///         param_settings.create_str_param("param1", &self.param1, Message::SetParam1)
 ///     }
 /// }
 /// ```
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct ParamSettings<L: Into<Length> + Clone> {
     /// The distance at which all input fields will be located
     pub name_size: L,
+    pub dictionary: Dictionary,
 }
 
 /// Type of requested path
@@ -147,7 +150,7 @@ impl<L: Into<Length> + Clone> ParamSettings<L> {
     ///     }
     ///
     ///     fn view(&self) -> Element<'_, Message> {
-    ///         let param_settings = ParamSettings {name_size: 100.};
+    ///         let param_settings = ParamSettings {name_size: 100., dictionary: Dictionary::default() };
     ///         param_settings.create_path_param(
     ///             "path_param",
     ///             &self.path_param.to_str().unwrap(),
@@ -159,7 +162,7 @@ impl<L: Into<Length> + Clone> ParamSettings<L> {
     /// }
     /// ```
     pub fn create_path_param<'elem, IM, SM, M, T, R>(
-        &self,
+        &'elem self,
         name: impl text::IntoFragment<'elem>,
         value: impl ToString,
         path_type: PathType,
@@ -182,8 +185,8 @@ impl<L: Into<Length> + Clone> ParamSettings<L> {
                 ),
                 Element::from(
                     button(match path_type {
-                        PathType::Dir => "Select folder",
-                        PathType::File => "Select file",
+                        PathType::Dir => self.dictionary.select_folder.as_str(),
+                        PathType::File => self.dictionary.select_file.as_str(),
                     })
                     .on_press(button_message)
                 ),

@@ -3,8 +3,7 @@ use iced::{
 };
 use iced_helper::
     ui_elements::{
-        ParamSettings, PathType,
-        select_file::{FileTypes, select_file},
+        ParamSettings, PathType, dictionary::Dictionary, select_file::{FileTypes, select_file}
     }
 ;
 use std::path::PathBuf;
@@ -12,13 +11,13 @@ use tracing::Level;
 use tracing_subscriber::{filter::Targets, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
 struct TestState {
-    pub path: PathBuf,
+    path: PathBuf,
+    ps: ParamSettings<u32>
 }
 
 impl TestState {
     fn view(state: &TestState) -> Element<'_, TestMessage, iced::Theme, iced::Renderer> {
-        let ps = ParamSettings { name_size: 200 };
-        column![ps.create_path_param(
+        column![state.ps.create_path_param(
             "path",
             state.path.to_string_lossy(),
             PathType::Dir,
@@ -48,6 +47,7 @@ fn main() {
     iced::application::<TestState, TestMessage, Theme, Renderer>(
         || TestState {
             path: PathBuf::new(),
+            ps: ParamSettings { name_size: 50, dictionary: Dictionary::default() },
         },
         |this: &mut TestState, message: TestMessage| -> Task<TestMessage> {
             match message {

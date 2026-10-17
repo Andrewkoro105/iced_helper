@@ -12,8 +12,6 @@ edition = "2024"
 [dependencies]
 iced = { version = "0.14.0", features = ["image", "tokio", "advanced"] }
 serde = "1.0.219"
-#native-dialog = { version = "0.9.7", features = ["async"] }
-
 futures = "0.3.31"
 futures-channel = "0.3.31"
 rayon = "1.10.0"
