@@ -48,7 +48,7 @@ pub enum PathType {
 
 impl<L: Into<Length> + Clone> ParamSettings<L> {
     /// Creates a parameter with the specified input field
-    pub fn create_param<'elem, UiElement, Message: 'elem, Theme, Renderer>(
+    pub fn create_param<'elem, 's, UiElement, Message: 'elem, Theme, Renderer>(
         &self,
         name: impl text::IntoFragment<'elem>,
         input: UiElement,
@@ -162,7 +162,7 @@ impl<L: Into<Length> + Clone> ParamSettings<L> {
     /// }
     /// ```
     pub fn create_path_param<'elem, IM, SM, M, T, R>(
-        &'elem self,
+        &self,
         name: impl text::IntoFragment<'elem>,
         value: impl ToString,
         path_type: PathType,
@@ -185,8 +185,8 @@ impl<L: Into<Length> + Clone> ParamSettings<L> {
                 ),
                 Element::from(
                     button(match path_type {
-                        PathType::Dir => self.dictionary.select_folder.as_str(),
-                        PathType::File => self.dictionary.select_file.as_str(),
+                        PathType::Dir => text(self.dictionary.select_folder.clone()),
+                        PathType::File => text(self.dictionary.select_file.clone()),
                     })
                     .on_press(button_message)
                 ),
