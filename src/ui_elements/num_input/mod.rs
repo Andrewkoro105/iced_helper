@@ -2,10 +2,11 @@
 
 pub mod base_value;
 pub mod modification;
+
 use iced::Element;
 use iced::widget::text_input;
 use serde::{Deserialize, Serialize, Serializer};
-use std::str::FromStr;
+use std::{marker::PhantomData, str::FromStr};
 
 use crate::ui_elements::num_input::{base_value::BaseValue, modification::Modification};
 
@@ -51,9 +52,8 @@ use crate::ui_elements::num_input::{base_value::BaseValue, modification::Modific
 #[derive(Debug, Clone)]
 pub struct NumInput<V, BT: BaseValue<V>, M: Modification<V>> {
     value: V,
-    _modification: M,
-    _base_value: BT,
-    str: String,
+    text: String,
+    _phantom: PhantomData<(BT, M)>,
 }
 
 impl<V, BT, M> Default for NumInput<V, BT, M>
@@ -64,9 +64,8 @@ where
     fn default() -> Self {
         Self {
             value: BT::VALUE,
-            _modification: Default::default(),
-            _base_value: Default::default(),
-            str: Default::default(),
+            text: Default::default(),
+            _phantom: Default::default(),
         }
     }
 }
@@ -80,15 +79,14 @@ where
     pub fn new(value: V) -> Self {
         Self {
             value,
-            _modification: Default::default(),
-            _base_value: Default::default(),
-            str: Mod::to_display(&value).to_string(),
+            text: Mod::to_display(&value).to_string(),
+            _phantom: Default::default(),
         }
     }
 
     pub fn set(&mut self, value: V) {
         self.value = value;
-        self.str = Mod::to_display(&value).to_string();
+        self.text = Mod::to_display(&value).to_string();
     }
 
     pub fn get(&self) -> V {
@@ -99,9 +97,9 @@ where
     pub fn update(&mut self, value_str: &str) -> V {
         if let Ok(value) = V::from_str(value_str) {
             self.value = Mod::to_base(&value);
-            self.str = value.to_string();
+            self.text = value.to_string();
         } else if value_str == "-" || value_str.is_empty() {
-            self.str = value_str.to_string();
+            self.text = value_str.to_string();
             self.value = BT::VALUE;
         }
         self.value
@@ -114,7 +112,7 @@ where
     /// - `message` - A message displayed when the text is changed
     pub fn view<'elem, F, MB, M, T, R>(
         &self,
-        placeholder: &str,
+        placeholder: Option<String>,
         message: F,
     ) -> Element<'elem, M, T, R>
     where
@@ -124,7 +122,7 @@ where
         R: iced::advanced::text::Renderer + 'elem,
         MB: Clone + 'elem,
     {
-        Element::from(text_input(placeholder, self.str.as_str()).on_input(message.clone()))
+        Element::from(text_input(&placeholder.unwrap_or(BT::VALUE.to_string()), self.text.as_str()).on_input(message.clone()))
             .map(Into::into)
     }
 }
@@ -155,10 +153,9 @@ where
     {
         let value = V::deserialize(deserializer)?;
         Ok(Self {
-            str: M::to_display(&value).to_string(),
+            text: M::to_display(&value).to_string(),
             value: value,
-            _modification: Default::default(),
-            _base_value: Default::default(),
+            _phantom: Default::default(),
         })
     }
 }
