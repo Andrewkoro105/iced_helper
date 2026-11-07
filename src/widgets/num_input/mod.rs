@@ -34,16 +34,16 @@ where
     value: &'elem BD,
     default: Option<BD>,
     may_be_negative: bool,
-    input_num_message: Option<Box<dyn Fn(BD) -> M>>,
-    input_text_message: Option<Box<dyn Fn(TextInputMessage) -> M>>,
+    input_num_message: Option<Box<dyn Fn(BD) -> M + 'elem>>,
+    input_text_message: Option<Box<dyn Fn(TextInputMessage) -> M + 'elem>>,
     text_input_generate: Box<
         dyn Fn(
             TextInput<'elem, TextInputMessage, T, R>,
         ) -> TextInput<'elem, TextInputMessage, T, R>,
     >,
     text_input: TextInput<'elem, TextInputMessage, T, R>,
-    to_base: Box<dyn Fn(&DD) -> BD>,
-    to_display: Box<dyn Fn(&BD) -> DD>,
+    to_base: Box<dyn Fn(&DD) -> BD + 'elem>,
+    to_display: Box<dyn Fn(&BD) -> DD + 'elem>,
     _phantom: PhantomData<DD>,
 }
 

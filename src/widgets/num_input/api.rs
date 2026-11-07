@@ -68,7 +68,7 @@ where
         self
     }
 
-    pub fn input_num_message(mut self, input_num_message: impl Fn(BD) -> M + 'static) -> Self {
+    pub fn input_num_message(mut self, input_num_message: impl Fn(BD) -> M + 'elem) -> Self {
         self.input_num_message = Some(Box::new(input_num_message) as _);
         self.update_text_input();
         self
@@ -76,7 +76,7 @@ where
 
     pub fn input_text_message(
         mut self,
-        input_text_message: impl Fn(TextInputMessage) -> M + 'static,
+        input_text_message: impl Fn(TextInputMessage) -> M + 'elem,
     ) -> Self {
         self.input_text_message = Some(Box::new(input_text_message) as _);
         self.update_text_input();
@@ -98,8 +98,8 @@ where
 
     pub fn cast(
         mut self,
-        to_base: impl Fn(&DD) -> BD + 'static,
-        to_display: impl Fn(&BD) -> DD + 'static,
+        to_base: impl Fn(&DD) -> BD + 'elem,
+        to_display: impl Fn(&BD) -> DD + 'elem,
     ) -> Self {
         self.to_base = Box::new(to_base) as _;
         self.to_display = Box::new(to_display) as _;
