@@ -23,6 +23,7 @@ indexmap = "2.14.0"
 iced_runtime = "0.14.0"
 tracing-subscriber = "0.3.23"
 rfd = { version = "0.17.2", default-features = false, features = ["wayland", "gtk3"] }
+num-traits = "0.2.19"
 
 [dev-dependencies]
-#iced = { version = "0.14.0", features = ["image", "tokio", "advanced", "debug"] }
+iced = { version = "0.14.0", features = ["image", "tokio", "advanced", "debug"] }

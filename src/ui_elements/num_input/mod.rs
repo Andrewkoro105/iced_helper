@@ -122,8 +122,14 @@ where
         R: iced::advanced::text::Renderer + 'elem,
         MB: Clone + 'elem,
     {
-        Element::from(text_input(&placeholder.unwrap_or(BT::VALUE.to_string()), self.text.as_str()).on_input(message.clone()))
-            .map(Into::into)
+        Element::from(
+            text_input(
+                &placeholder.unwrap_or(BT::VALUE.to_string()),
+                self.text.as_str(),
+            )
+            .on_input(message.clone()),
+        )
+        .map(Into::into)
     }
 }
 
