@@ -1,16 +1,21 @@
 use iced::{
-    Element, Renderer, Task, Theme,
+    Border, Color, Element, Renderer, Shadow, Task, Theme,
     widget::{column, row, text},
 };
 use iced_helper::{
+    optimal_color::{border_color, text_color},
     ui_elements::{
         ParamSettings, PathType,
         dictionary::Dictionary,
         select_file::{FileTypes, select_file},
     },
-    widgets::num_input::num_input,
+    widgets::{
+        menu,
+        num_input::num_input,
+        pick_list::{self, pick_list},
+    },
 };
-use std::path::PathBuf;
+use std::{path::PathBuf, str::FromStr};
 use tracing::{Level, info};
 use tracing_subscriber::{filter::Targets, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -20,6 +25,7 @@ struct TestState {
     num_f32: f32,
     num_u8: u8,
     color: f32,
+    color_str: String,
 }
 
 impl TestState {
@@ -75,6 +81,106 @@ impl TestState {
                 ]
                 .spacing(5)
             ),
+            state.ps.create_param(
+                "pick list",
+                pick_list(
+                    ["red".to_owned(), "green".to_owned(), "blue".to_owned()],
+                    Some(state.color_str.clone()),
+                    TestMessage::ColorStr
+                )
+                .style(|theme: &Theme, status| {
+                    let palette = theme.extended_palette();
+
+                    let mut active = pick_list::Style {
+                        text_color: palette.background.weak.text,
+                        background: palette.background.weak.color.into(),
+                        placeholder_color: palette.secondary.base.color,
+                        handle_color: palette.background.weak.text,
+                        border: Border {
+                            radius: 2.0.into(),
+                            width: 1.0,
+                            color: palette.background.strong.color,
+                        },
+                    };
+
+                    match state.color_str.as_str() {
+                        "red" => {
+                            active.background = Color::from_str("#ff0000").unwrap().into();
+                        }
+                        "green" => {
+                            active.background = Color::from_str("#00ff00").unwrap().into();
+                        }
+                        "blue" => {
+                            active.background = Color::from_str("#0000ff").unwrap().into();
+                        }
+                        _ => {}
+                    }
+
+                    active.text_color = text_color(&active.text_color);
+                    active.handle_color = active.text_color;
+                    match status {
+                        pick_list::Status::Active => active,
+                        pick_list::Status::Hovered | pick_list::Status::Opened { .. } => {
+                            pick_list::Style {
+                                border: Border {
+                                    color: palette.primary.strong.color,
+                                    ..active.border
+                                },
+                                ..active
+                            }
+                        }
+                    }
+                })
+                .menu_style(|theme: &Theme, option: Option<&String>, status| {
+                    let palette = theme.extended_palette();
+
+                    let background_color = match option.map(String::as_str) {
+                        Some("red") => Color::from_str("#ff0000").unwrap(),
+                        Some("green") => Color::from_str("#00ff00").unwrap(),
+                        Some("blue") => Color::from_str("#0000ff").unwrap(),
+                        _ => palette.background.weak.color.into(),
+                    };
+                    match status {
+                        menu::Status::Active => menu::Style {
+                            background: background_color.into(),
+                            border: Border {
+                                width: 1.0,
+                                radius: 0.0.into(),
+                                color: palette.background.strong.color,
+                            },
+                            text_color: text_color(&background_color),
+                            shadow: Shadow::default(),
+                        },
+                        menu::Status::Hovered => {
+                            let light = 0.3;
+                            let selected_background_color = Color {
+                                a: background_color.a + light,
+                                r: background_color.r + light,
+                                g: background_color.g + light,
+                                b: background_color.b + light,
+                            };
+                            menu::Style {
+                                background: selected_background_color.into(),
+                                border: Border {
+                                    width: 3.0,
+                                    radius: 0.0.into(),
+                                    color: border_color(selected_background_color, 1.0),
+                                },
+                                text_color: text_color(&selected_background_color),
+                                shadow: Shadow::default(),
+                            }
+                        }
+                    }
+                })
+            ),
+            state.ps.create_param(
+                "pick list",
+                pick_list(
+                    ["red".to_owned(), "green".to_owned(), "blue".to_owned()],
+                    Some(state.color_str.clone()),
+                    TestMessage::ColorStr
+                ),
+            )
         ]
         .padding(5)
         .spacing(5)
@@ -89,6 +195,7 @@ enum TestMessage {
     NumF32(f32),
     NumU8(u8),
     Color(f32),
+    ColorStr(String),
 }
 
 fn main() {
@@ -111,6 +218,7 @@ fn main() {
             num_f32: 5.,
             num_u8: 6,
             color: 0.,
+            color_str: "red".to_owned(),
         },
         |this: &mut TestState, message: TestMessage| -> Task<TestMessage> {
             match message {
@@ -131,6 +239,10 @@ fn main() {
                 }
                 TestMessage::Color(num) => {
                     this.color = num;
+                    Task::none()
+                }
+                TestMessage::ColorStr(color_str) => {
+                    this.color_str = color_str;
                     Task::none()
                 }
             }

@@ -3,4 +3,5 @@ pub mod ui_elements;
 pub mod unique_number;
 pub mod widgets;
 pub mod shell_merge;
+pub mod optimal_color;
 

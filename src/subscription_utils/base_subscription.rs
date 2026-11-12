@@ -45,9 +45,9 @@ where
     IM: IcedUiModule<RM, R, Settings> + UniqueNumber,
     M: IcedMessage<R> + From<RM> + Send + 'static,
     RM: 'static,
-    D: IcedSubscriptionData<M, R, Settings> + for<'a> From<&'a IM> + Send + 'static,
+    D: IcedSubscriptionData<M, R, Settings> + for<'a> From<&'a IM> + Send + Sync + Hash + Clone + 'static,
     R: Send,
-    Settings: Clone + Send + 'static,
+    Settings: Clone + Send + Sync + Hash + 'static,
 {
     fn subscription(&self, settings: &Settings) -> Subscription<M> {
         if self.start() {
@@ -64,16 +64,18 @@ impl<IM, R, M, D, Settings> CoreSubscription<R, M, D, Settings> for IM
 where
     IM: UniqueNumber,
     M: IcedMessage<R> + Send + 'static,
-    D: IcedSubscriptionData<M, R, Settings> + for<'a> From<&'a IM> + Send + 'static,
+    D: IcedSubscriptionData<M, R, Settings> + for<'a> From<&'a IM> + Send + Sync + Hash + Clone + 'static,
     R: Send,
-    Settings: Clone + Send + 'static,
+    Settings: Clone + Send + Sync + Hash + 'static,
 {
     fn subscription_core(&self, settings: &Settings) -> Subscription<M> {
         let data: D = self.into();
         let settings = settings.clone();
-        Subscription::run_with_id(
-            self.unique_number(),
-            stream::channel(100, move |mut sender| async move {
+        Subscription::run_with((data, settings), |(data, settings)| {
+
+            let data = data.clone();
+            let settings = settings.clone();
+            stream::channel(100, move |mut sender: Sender<M>| async move {
                 let start = Instant::now();
                 sender.send(M::SET_ZERO_PROGRESS).await;
                 sender
@@ -85,7 +87,7 @@ where
                 sender.send(M::STOP).await;
 
                 info!("Execution time: {:?}", start.elapsed());
-            }),
-        )
+            })
+        })
     }
 }
