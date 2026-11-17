@@ -41,7 +41,7 @@ impl TestState {
                     })
                     .spacing(15)
                     .on_scroll(TestMessage::Scroll)
-                    .set_id(Id::new("vl")),
+                    .id(Id::new("vl")),
             )
             .style(|theme| container::warning(theme)),
         )

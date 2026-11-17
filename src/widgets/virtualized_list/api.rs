@@ -218,7 +218,7 @@ where
         self
     }
 
-    pub fn set_id(mut self, id: Id) -> Self {
+    pub fn id(mut self, id: Id) -> Self {
         self.id = Some(id);
         self
     }
