@@ -1,6 +1,6 @@
 use iced::{
     Element, Theme,
-    widget::{container, text, tooltip},
+    widget::{button, container, stack, text, tooltip},
 };
 use iced_helper::widgets::virtualized_list::virtualized_list;
 use std::time::Instant;
@@ -14,12 +14,24 @@ struct TestState {
 impl TestState {
     fn view(state: &TestState) -> Element<'_, (), iced::Theme, iced::Renderer> {
         container(
-            container(virtualized_list(&state.data).get_elem(|data, _, _| {
-                container(tooltip(text!("elem: ({data})"), text!("tolltip: ({data})"), tooltip::Position::Bottom))
-                    .padding(5)
-                    .style(|theme| container::success(theme))
-                    .into()
-            }).spacing(100).gap(20))
+            container(
+                virtualized_list(&state.data)
+                    .get_elem(|data, _, _| {
+                        stack![
+                            container(tooltip(
+                                text!("elem: ({data})"),
+                                text!("tolltip: ({data})"),
+                                tooltip::Position::Bottom,
+                            ))
+                            .padding(5)
+                            .style(|theme| container::success(theme)),
+                            button("X"),
+                        ]
+                        .into()
+                    })
+                    .spacing(100)
+                    .gap(20),
+            )
             .style(|theme| container::warning(theme)),
         )
         .padding(100)

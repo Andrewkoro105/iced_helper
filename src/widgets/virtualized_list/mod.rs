@@ -17,8 +17,8 @@ use iced::{
     widget::Id,
 };
 use indexmap::IndexMap;
-use tracing::{debug, trace};
 use std::hash::Hash;
+use tracing::{debug, trace};
 
 pub trait ScrollBar<M, T, R: Renderer>: Widget<M, T, R> {
     type State: ScrollBarState;
@@ -225,23 +225,11 @@ where
         viewport: &Rectangle,
     ) {
         trace!("draw");
-        let scrollbar_state = tree.children[0].state.downcast_ref::<SB::State>();
-        let is_view_gap = scrollbar_state
-            .get_view()
-            .map(|view| view < 1.)
-            .unwrap_or(true);
-        if is_view_gap {
-            self.scrollbar.draw(
-                &tree.children[0],
-                renderer,
-                theme,
-                style,
-                layout.child(0),
-                cursor,
-                viewport,
-            );
-        }
         let state = tree.state.downcast_ref::<State>();
+
+        let Some(clipped_viewport) = viewport.intersection(&layout.bounds()) else {
+            return;
+        };
 
         renderer.with_layer(layout.bounds(), |renderer| {
             state
@@ -259,10 +247,27 @@ where
                             &cash_elem.node,
                         ),
                         cursor,
-                        viewport,
+                        &clipped_viewport,
                     )
                 });
         });
+        
+        let scrollbar_state = tree.children[0].state.downcast_ref::<SB::State>();
+        let is_view_gap = scrollbar_state
+            .get_view()
+            .map(|view| view < 1.)
+            .unwrap_or(true);
+        if is_view_gap {
+            self.scrollbar.draw(
+                &tree.children[0],
+                renderer,
+                theme,
+                style,
+                layout.child(0),
+                cursor,
+                viewport,
+            );
+        }
     }
 
     fn update(
